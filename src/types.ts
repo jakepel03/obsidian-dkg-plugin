@@ -19,7 +19,7 @@ export const DEFAULT_SETTINGS: OriginTrailSettings = {
   autoPromote: false,
   syncDebounceMs: 1500,
   vaultId: "",
-  hasSeenPowerUpPrompt: false
+  hasSeenPowerUpPrompt: false,
 };
 
 export type RequestTransport = (request: RequestUrlParam) => Promise<RequestUrlResponse>;

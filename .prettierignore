@@ -1,0 +1,10 @@
+# Build output
+main.js
+dist/
+
+# Assets
+*.css
+
+# Generated / tooling
+pnpm-lock.yaml
+node_modules/

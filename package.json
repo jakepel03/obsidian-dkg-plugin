@@ -6,7 +6,13 @@
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc --noEmit --skipLibCheck && node esbuild.config.mjs production",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint src tests",
+    "format": "prettier --write src tests",
+    "format:check": "prettier --check src tests"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
   },
   "keywords": [
     "obsidian",
@@ -21,9 +27,13 @@
     "@types/node": "^22.10.2",
     "builtin-modules": "^5.0.0",
     "esbuild": "^0.24.2",
+    "eslint": "^10.4.0",
+    "eslint-config-prettier": "^10.1.8",
     "obsidian": "^1.7.2",
+    "prettier": "^3.8.3",
     "tslib": "^2.8.1",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.59.3",
     "vitest": "^2.1.8"
   }
 }

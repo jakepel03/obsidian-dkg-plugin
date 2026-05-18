@@ -25,7 +25,10 @@ export function normalizeVaultPath(path: string): string {
 export async function makeAssertionName(vaultId: string, filePath: string, content: string): Promise<string> {
   const normalized = normalizeVaultPath(filePath);
   const hash = await sha256Hex(`${vaultId}:${normalized}:${content}`);
-  const timestamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  const timestamp = new Date()
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}Z$/, "Z");
   return `obsidian-note-${hash.slice(0, 16)}-${timestamp}`;
 }
 

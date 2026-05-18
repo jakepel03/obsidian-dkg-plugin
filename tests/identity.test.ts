@@ -4,7 +4,9 @@ import { makeAssertionName, normalizeVaultPath, slugifyContextGraphId } from "..
 describe("identity helpers", () => {
   it("slugifies vault names into stable context graph ids", () => {
     expect(slugifyContextGraphId("AI Research Notes")).toBe("ai-research-notes");
-    expect(slugifyContextGraphId("  Obsidian: OriginTrail / Shared Memory!  ")).toBe("obsidian-origintrail-shared-memory");
+    expect(slugifyContextGraphId("  Obsidian: OriginTrail / Shared Memory!  ")).toBe(
+      "obsidian-origintrail-shared-memory"
+    );
   });
 
   it("normalizes vault-relative paths", () => {

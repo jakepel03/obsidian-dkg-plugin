@@ -18,12 +18,14 @@ export class DkgClient {
   async listContextGraphs(): Promise<ContextGraphSummary[]> {
     const data = await this.json("GET", "/api/context-graph/list");
     const raw = Array.isArray(data) ? data : ((data as any).contextGraphs ?? (data as any).graphs ?? []);
-    return raw.map((g: any) => ({
-      id: String(g.id ?? g.contextGraphId ?? g.context_graph_id ?? ""),
-      name: String(g.name ?? g.displayName ?? g.id ?? g.contextGraphId ?? ""),
-      subscribed: g.subscribed,
-      synced: g.synced
-    })).filter((g: ContextGraphSummary) => g.id.length > 0);
+    return raw
+      .map((g: any) => ({
+        id: String(g.id ?? g.contextGraphId ?? g.context_graph_id ?? ""),
+        name: String(g.name ?? g.displayName ?? g.id ?? g.contextGraphId ?? ""),
+        subscribed: g.subscribed,
+        synced: g.synced,
+      }))
+      .filter((g: ContextGraphSummary) => g.id.length > 0);
   }
 
   async createContextGraph(id: string, name: string): Promise<unknown> {
@@ -31,7 +33,7 @@ export class DkgClient {
       id,
       name,
       description: `Obsidian vault project for ${name}`,
-      accessPolicy: 1
+      accessPolicy: 1,
     });
   }
 
@@ -55,20 +57,29 @@ export class DkgClient {
     return this.json("POST", "/api/assertion/create", { contextGraphId, name });
   }
 
-  async importMarkdown(contextGraphId: string, assertionName: string, fileName: string, markdown: string): Promise<any> {
+  async importMarkdown(
+    contextGraphId: string,
+    assertionName: string,
+    fileName: string,
+    markdown: string
+  ): Promise<any> {
     const boundary = `----obsidian-origintrail-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const body = this.multipartBody(boundary, {
-      contextGraphId,
-      contentType: "text/markdown"
-    }, {
-      fieldName: "file",
-      fileName,
-      contentType: "text/markdown; charset=utf-8",
-      content: markdown
-    });
+    const body = this.multipartBody(
+      boundary,
+      {
+        contextGraphId,
+        contentType: "text/markdown",
+      },
+      {
+        fieldName: "file",
+        fileName,
+        contentType: "text/markdown; charset=utf-8",
+        content: markdown,
+      }
+    );
 
     return this.rawJson("POST", `/api/assertion/${encodeURIComponent(assertionName)}/import-file`, body, {
-      "Content-Type": `multipart/form-data; boundary=${boundary}`
+      "Content-Type": `multipart/form-data; boundary=${boundary}`,
     });
   }
 
@@ -80,17 +91,22 @@ export class DkgClient {
   async promoteAssertion(contextGraphId: string, assertionName: string): Promise<unknown> {
     return this.json("POST", `/api/assertion/${encodeURIComponent(assertionName)}/promote`, {
       contextGraphId,
-      entities: "all"
+      entities: "all",
     });
   }
 
   private async json(method: string, path: string, body?: unknown): Promise<unknown> {
     return this.rawJson(method, path, body === undefined ? undefined : JSON.stringify(body), {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
     });
   }
 
-  private async rawJson(method: string, path: string, body?: string, extraHeaders: Record<string, string> = {}): Promise<unknown> {
+  private async rawJson(
+    method: string,
+    path: string,
+    body?: string,
+    extraHeaders: Record<string, string> = {}
+  ): Promise<unknown> {
     const headers: Record<string, string> = { ...extraHeaders };
     const token = this.authToken.trim();
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -100,7 +116,7 @@ export class DkgClient {
       method,
       headers,
       body,
-      throw: false
+      throw: false,
     });
 
     if (response.status < 200 || response.status >= 300) {
@@ -122,12 +138,20 @@ export class DkgClient {
     return `${base}${path.startsWith("/") ? path : `/${path}`}`;
   }
 
-  private multipartBody(boundary: string, fields: Record<string, string>, file: { fieldName: string; fileName: string; contentType: string; content: string }): string {
+  private multipartBody(
+    boundary: string,
+    fields: Record<string, string>,
+    file: { fieldName: string; fileName: string; contentType: string; content: string }
+  ): string {
     const chunks: string[] = [];
     for (const [name, value] of Object.entries(fields)) {
-      chunks.push(`--${boundary}\r\nContent-Disposition: form-data; name="${escapeMultipart(name)}"\r\n\r\n${value}\r\n`);
+      chunks.push(
+        `--${boundary}\r\nContent-Disposition: form-data; name="${escapeMultipart(name)}"\r\n\r\n${value}\r\n`
+      );
     }
-    chunks.push(`--${boundary}\r\nContent-Disposition: form-data; name="${escapeMultipart(file.fieldName)}"; filename="${escapeMultipart(file.fileName)}"\r\nContent-Type: ${file.contentType}\r\n\r\n${file.content}\r\n`);
+    chunks.push(
+      `--${boundary}\r\nContent-Disposition: form-data; name="${escapeMultipart(file.fieldName)}"; filename="${escapeMultipart(file.fileName)}"\r\nContent-Type: ${file.contentType}\r\n\r\n${file.content}\r\n`
+    );
     chunks.push(`--${boundary}--\r\n`);
     return chunks.join("");
   }

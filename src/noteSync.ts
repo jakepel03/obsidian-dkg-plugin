@@ -11,7 +11,14 @@ export function shouldSkipPath(path: string): boolean {
   return path.startsWith(".obsidian/") || path.startsWith(".trash/") || path.includes("/.trash/");
 }
 
-export async function syncMarkdownFile(app: App, client: DkgClient, contextGraphId: string, vaultId: string, file: TFile, autoPromote: boolean): Promise<SyncResult> {
+export async function syncMarkdownFile(
+  app: App,
+  client: DkgClient,
+  contextGraphId: string,
+  vaultId: string,
+  file: TFile,
+  autoPromote: boolean
+): Promise<SyncResult> {
   const content = await app.vault.read(file);
   const assertionName = await makeAssertionName(vaultId, file.path, content);
   await client.createAssertion(contextGraphId, assertionName);
@@ -31,7 +38,14 @@ export async function syncMarkdownFile(app: App, client: DkgClient, contextGraph
   return { filePath: file.path, assertionName, status: "imported", tripleCount };
 }
 
-export async function syncAllMarkdownFiles(app: App, client: DkgClient, contextGraphId: string, vaultId: string, autoPromote: boolean, onProgress?: (done: number, total: number, file: TFile) => void): Promise<SyncResult[]> {
+export async function syncAllMarkdownFiles(
+  app: App,
+  client: DkgClient,
+  contextGraphId: string,
+  vaultId: string,
+  autoPromote: boolean,
+  onProgress?: (done: number, total: number, file: TFile) => void
+): Promise<SyncResult[]> {
   const files = app.vault.getMarkdownFiles().filter((file) => !shouldSkipPath(file.path));
   const results: SyncResult[] = [];
 
