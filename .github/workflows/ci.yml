@@ -60,6 +60,9 @@ jobs:
       - name: Type-check and build
         run: pnpm build
 
+      - name: Check main.js is up to date
+        run: git diff --exit-code main.js
+
   test:
     needs: build
     runs-on: ubuntu-latest
