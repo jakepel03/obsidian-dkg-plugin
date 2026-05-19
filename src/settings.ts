@@ -57,9 +57,7 @@ export class OriginTrailSettingTab extends PluginSettingTab {
       });
 
     const CONN_IDLE_DESC = "Checks /api/status and /api/agent/identity with the current settings.";
-    const testConnSetting = new Setting(containerEl)
-      .setName("Test connection")
-      .setDesc(CONN_IDLE_DESC);
+    const testConnSetting = new Setting(containerEl).setName("Test connection").setDesc(CONN_IDLE_DESC);
     testConnSetting.addButton((btn) => {
       btn.setButtonText("Test").onClick(async () => {
         btn.setButtonText("Testing...");
@@ -94,9 +92,11 @@ export class OriginTrailSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Linked DKG Project")
-      .setDesc(this.plugin.settings.defaultContextGraphId
-        ? "The DKG context graph ID for this vault's project."
-        : "No project linked yet — run the setup wizard.")
+      .setDesc(
+        this.plugin.settings.defaultContextGraphId
+          ? "The DKG context graph ID for this vault's project."
+          : "No project linked yet — run the setup wizard."
+      )
       .addText((text) =>
         text
           .setPlaceholder("context graph id")
@@ -139,7 +139,9 @@ export class OriginTrailSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Promote to Shared Memory")
-      .setDesc("When enabled, synced notes are promoted from Working Memory to Shared Memory. Leave off during early testing.")
+      .setDesc(
+        "When enabled, synced notes are promoted from Working Memory to Shared Memory. Leave off during early testing."
+      )
       .addToggle((toggle) =>
         toggle.setValue(this.plugin.settings.autoPromote).onChange(async (value) => {
           this.plugin.settings.autoPromote = value;

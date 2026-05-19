@@ -228,16 +228,15 @@ export class SetupWizardModal extends Modal {
     const { contentEl } = this;
     contentEl.createEl("h2", { text: "Step 1 of 3 — Connect to your DKG node" });
 
-    let nextBtn: ButtonComponent | undefined;
-    let testSetting: Setting | undefined;
     const IDLE_DESC = "Verify that the plugin can reach your DKG node with the credentials above.";
+    const refs: { nextBtn?: ButtonComponent; testSetting?: Setting } = {};
 
     const invalidateTest = () => {
       this.connectionTested = false;
-      nextBtn?.setDisabled(true);
-      if (testSetting) {
-        testSetting.setDesc(IDLE_DESC);
-        testSetting.descEl.style.color = "";
+      refs.nextBtn?.setDisabled(true);
+      if (refs.testSetting) {
+        refs.testSetting.setDesc(IDLE_DESC);
+        refs.testSetting.descEl.style.color = "";
       }
     };
 
@@ -261,14 +260,14 @@ export class SetupWizardModal extends Modal {
         });
       });
 
-    testSetting = new Setting(contentEl).setName("Test connection").setDesc(IDLE_DESC);
+    refs.testSetting = new Setting(contentEl).setName("Test connection").setDesc(IDLE_DESC);
 
-    testSetting.addButton((btn) => {
+    refs.testSetting.addButton((btn) => {
       btn.setButtonText("Test").onClick(async () => {
         btn.setButtonText("Testing...");
         btn.setDisabled(true);
-        testSetting!.setDesc("Connecting...");
-        testSetting!.descEl.style.color = "var(--text-muted)";
+        refs.testSetting!.setDesc("Connecting...");
+        refs.testSetting!.descEl.style.color = "var(--text-muted)";
 
         let nodeOk = false;
         try {
@@ -277,22 +276,22 @@ export class SetupWizardModal extends Modal {
           nodeOk = true;
 
           await client.identity();
-          testSetting!.setDesc("Connected — node reachable, identity verified");
-          testSetting!.descEl.style.color = "var(--color-green)";
+          refs.testSetting!.setDesc("Connected — node reachable, identity verified");
+          refs.testSetting!.descEl.style.color = "var(--color-green)";
 
           await this.plugin.saveSettings();
           this.connectionTested = true;
-          nextBtn?.setDisabled(false);
+          refs.nextBtn?.setDisabled(false);
         } catch (err) {
           console.error("[DKG wizard] connection test failed:", err);
-          testSetting!.setDesc(
+          refs.testSetting!.setDesc(
             nodeOk
               ? "Node reachable but identity check failed — check your auth token"
               : "Could not reach node — check the URL and that your node is running"
           );
-          testSetting!.descEl.style.color = "var(--color-red)";
+          refs.testSetting!.descEl.style.color = "var(--color-red)";
           this.connectionTested = false;
-          nextBtn?.setDisabled(true);
+          refs.nextBtn?.setDisabled(true);
         } finally {
           btn.setButtonText("Test");
           btn.setDisabled(false);
@@ -307,8 +306,8 @@ export class SetupWizardModal extends Modal {
       await this.plugin.saveSettings();
       this.close();
     });
-    nextBtn = new ButtonComponent(footer);
-    nextBtn
+    refs.nextBtn = new ButtonComponent(footer);
+    refs.nextBtn
       .setButtonText("Next →")
       .setCta()
       .setDisabled(!this.connectionTested)
@@ -386,7 +385,10 @@ export class SetupWizardModal extends Modal {
 
     const footer = this.wizardFooter(contentEl);
     footer.style.justifyContent = "flex-end";
-    new ButtonComponent(footer).setButtonText("Close").setCta().onClick(() => this.close());
+    new ButtonComponent(footer)
+      .setButtonText("Close")
+      .setCta()
+      .onClick(() => this.close());
   }
 }
 
