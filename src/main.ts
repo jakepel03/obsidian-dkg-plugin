@@ -1,4 +1,4 @@
-import { Modal, Notice, Plugin, Setting, TFile, requestUrl } from "obsidian";
+import { ButtonComponent, Modal, Notice, Plugin, Setting, TFile, requestUrl } from "obsidian";
 import { DkgClient } from "./dkgClient";
 import { makeVaultId, slugifyContextGraphId } from "./identity";
 import { syncAllMarkdownFiles, syncMarkdownFile, shouldSkipPath } from "./noteSync";
@@ -28,7 +28,11 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     this.addCommand({
       id: "create-project-from-current-vault-and-sync-notes",
       name: "Power up current vault with OriginTrail Shared Memory",
-      callback: () => this.createProjectFromVaultAndSyncNotes(),
+      callback: () =>
+        this.createProjectFromVaultAndSyncNotes().catch((err) => {
+          console.error(err);
+          new Notice(`Create/sync failed: ${errorMessage(err)}`, 12000);
+        }),
     });
 
     this.addCommand({
@@ -92,46 +96,50 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     }
   }
 
-  async createProjectFromVaultAndSyncNotes() {
+  async createProjectFromVaultAndSyncNotes(opts?: {
+    onStatus?: (msg: string) => void;
+    onProgress?: (done: number, total: number, file: TFile) => void;
+  }): Promise<number> {
+    const notify = opts?.onStatus ?? ((msg: string) => new Notice(msg));
     const vaultName = this.app.vault.getName();
     const contextGraphId = slugifyContextGraphId(vaultName);
     const client = this.client();
 
-    try {
-      new Notice(`Creating/linking DKG Project “${vaultName}”…`);
-      const graph = await client.ensureContextGraph(contextGraphId, vaultName);
-      this.settings.defaultContextGraphId = graph.id || contextGraphId;
-      this.settings.autoSync = true;
-      this.settings.hasSeenPowerUpPrompt = true;
-      await this.saveSettings();
-      this.updateStatusBar();
+    notify(`Creating/linking DKG Project "${vaultName}"...`);
+    const graph = await client.ensureContextGraph(contextGraphId, vaultName);
+    this.settings.defaultContextGraphId = graph.id || contextGraphId;
+    this.settings.autoSync = true;
+    this.settings.hasSeenPowerUpPrompt = true;
+    await this.saveSettings();
+    this.updateStatusBar();
 
-      new Notice(`Syncing Markdown notes to DKG Working Memory…`);
-      const results = await syncAllMarkdownFiles(
-        this.app,
-        client,
-        this.settings.defaultContextGraphId,
-        this.settings.vaultId,
-        this.settings.autoPromote,
-        (done, total, file) => {
+    notify(`Syncing Markdown notes to DKG Working Memory...`);
+    const results = await syncAllMarkdownFiles(
+      this.app,
+      client,
+      this.settings.defaultContextGraphId,
+      this.settings.vaultId,
+      this.settings.autoPromote,
+      opts?.onProgress ??
+        ((done, total, file) => {
           if (done === 0 || done % 5 === 0) new Notice(`DKG sync ${done + 1}/${total}: ${file.path}`, 2500);
-        }
-      );
+        })
+    );
 
+    if (!opts?.onStatus) {
       new Notice(
         `DKG Project linked: ${this.settings.defaultContextGraphId}. Synced ${results.length} notes to ${this.settings.autoPromote ? "Shared Memory" : "Working Memory"}.`,
         10000
       );
-    } catch (error) {
-      console.error(error);
-      new Notice(`Create/sync failed: ${errorMessage(error)}`, 12000);
     }
+
+    return results.length;
   }
 
   async syncFile(file: TFile) {
     if (!this.settings.defaultContextGraphId) {
       new Notice(
-        "This vault is not powered up yet. Run “Power up current vault with OriginTrail Shared Memory” first."
+        'This vault is not powered up yet. Run "Power up current vault with OriginTrail Shared Memory" first.'
       );
       return;
     }
@@ -169,44 +177,216 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
 
   private maybeShowPowerUpPrompt() {
     if (this.settings.defaultContextGraphId || this.settings.hasSeenPowerUpPrompt) return;
-    new PowerUpModal(this).open();
+    new SetupWizardModal(this).open();
   }
 }
 
-class PowerUpModal extends Modal {
+export class SetupWizardModal extends Modal {
+  private step = 1;
+  private connectionTested = false;
+  private syncedCount = 0;
+
   constructor(private readonly plugin: OriginTrailSharedMemoryPlugin) {
     super(plugin.app);
   }
 
   onOpen() {
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.createEl("h2", { text: "Power up this vault with OriginTrail Shared Memory" });
-    contentEl.createEl("p", {
-      text: "Create an OriginTrail DKG Project with this vault’s name and sync Markdown notes into DKG Working Memory. Shared Memory promotion stays off until you enable it.",
-    });
-
-    new Setting(contentEl)
-      .addButton((button) =>
-        button
-          .setButtonText("Power up vault")
-          .setCta()
-          .onClick(async () => {
-            this.close();
-            await this.plugin.createProjectFromVaultAndSyncNotes();
-          })
-      )
-      .addButton((button) =>
-        button.setButtonText("Maybe later").onClick(async () => {
-          this.plugin.settings.hasSeenPowerUpPrompt = true;
-          await this.plugin.saveSettings();
-          this.close();
-        })
-      );
+    this.renderStep();
   }
 
   onClose() {
     this.contentEl.empty();
+    if (!this.plugin.settings.hasSeenPowerUpPrompt) {
+      this.plugin.settings.hasSeenPowerUpPrompt = true;
+      this.plugin.saveSettings();
+    }
+  }
+
+  private renderStep() {
+    const { contentEl } = this;
+    contentEl.empty();
+    if (this.step === 1) this.renderStep1();
+    else if (this.step === 2) this.renderStep2();
+    else this.renderStep3();
+  }
+
+  private wizardFooter(el: HTMLElement): HTMLElement {
+    const footer = el.createDiv();
+    footer.style.cssText =
+      "display: flex; justify-content: space-between; align-items: center;" +
+      " margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--background-modifier-border);";
+    return footer;
+  }
+
+  private ghostButton(container: HTMLElement, label: string): ButtonComponent {
+    const btn = new ButtonComponent(container).setButtonText(label);
+    btn.buttonEl.style.cssText = "background: none; box-shadow: none; color: var(--text-muted);";
+    return btn;
+  }
+
+  private renderStep1() {
+    const { contentEl } = this;
+    contentEl.createEl("h2", { text: "Step 1 of 3 — Connect to your DKG node" });
+
+    let nextBtn: ButtonComponent | undefined;
+    let testSetting: Setting | undefined;
+    const IDLE_DESC = "Verify that the plugin can reach your DKG node with the credentials above.";
+
+    const invalidateTest = () => {
+      this.connectionTested = false;
+      nextBtn?.setDisabled(true);
+      if (testSetting) {
+        testSetting.setDesc(IDLE_DESC);
+        testSetting.descEl.style.color = "";
+      }
+    };
+
+    new Setting(contentEl).setName("DKG node URL").addText((text) => {
+      text.setPlaceholder("http://127.0.0.1:9200").setValue(this.plugin.settings.dkgNodeUrl);
+      text.inputEl.addEventListener("input", () => {
+        this.plugin.settings.dkgNodeUrl = text.getValue().trim();
+        invalidateTest();
+      });
+    });
+
+    new Setting(contentEl)
+      .setName("Auth token")
+      .setDesc("Auth token from your DKG node.")
+      .addText((text) => {
+        text.inputEl.type = "password";
+        text.setPlaceholder("Paste DKG auth token").setValue(this.plugin.settings.authToken);
+        text.inputEl.addEventListener("input", () => {
+          this.plugin.settings.authToken = text.getValue().trim();
+          invalidateTest();
+        });
+      });
+
+    testSetting = new Setting(contentEl).setName("Test connection").setDesc(IDLE_DESC);
+
+    testSetting.addButton((btn) => {
+      btn.setButtonText("Test").onClick(async () => {
+        btn.setButtonText("Testing...");
+        btn.setDisabled(true);
+        testSetting!.setDesc("Connecting...");
+        testSetting!.descEl.style.color = "var(--text-muted)";
+
+        let nodeOk = false;
+        try {
+          const client = this.plugin.client();
+          await client.status();
+          nodeOk = true;
+
+          await client.identity();
+          testSetting!.setDesc("Connected — node reachable, identity verified");
+          testSetting!.descEl.style.color = "var(--color-green)";
+
+          await this.plugin.saveSettings();
+          this.connectionTested = true;
+          nextBtn?.setDisabled(false);
+        } catch (err) {
+          console.error("[DKG wizard] connection test failed:", err);
+          testSetting!.setDesc(
+            nodeOk
+              ? "Node reachable but identity check failed — check your auth token"
+              : "Could not reach node — check the URL and that your node is running"
+          );
+          testSetting!.descEl.style.color = "var(--color-red)";
+          this.connectionTested = false;
+          nextBtn?.setDisabled(true);
+        } finally {
+          btn.setButtonText("Test");
+          btn.setDisabled(false);
+        }
+      });
+    });
+
+    // Footer: [Maybe later] ........... [Next →]
+    const footer = this.wizardFooter(contentEl);
+    this.ghostButton(footer, "Maybe later").onClick(async () => {
+      this.plugin.settings.hasSeenPowerUpPrompt = true;
+      await this.plugin.saveSettings();
+      this.close();
+    });
+    nextBtn = new ButtonComponent(footer);
+    nextBtn
+      .setButtonText("Next →")
+      .setCta()
+      .setDisabled(!this.connectionTested)
+      .onClick(() => {
+        this.step = 2;
+        this.renderStep();
+      });
+  }
+
+  private renderStep2() {
+    const { contentEl } = this;
+    const vaultName = this.plugin.app.vault.getName();
+    const contextGraphId = slugifyContextGraphId(vaultName);
+
+    contentEl.createEl("h2", { text: "Step 2 of 3 — Power up this vault" });
+    contentEl.createEl("p", {
+      text: "Power up creates a DKG Project linked to this vault and imports all Markdown notes into Working Memory. Shared Memory promotion stays off until you enable it in Settings.",
+    });
+
+    const infoBox = contentEl.createDiv();
+    infoBox.style.cssText =
+      "background: var(--background-secondary); border-radius: 6px;" +
+      " padding: 10px 14px; margin: 12px 0; font-size: 0.9em; line-height: 1.8;";
+    infoBox.createEl("div", { text: `Vault: ${vaultName}` });
+    infoBox.createEl("div", { text: `Context graph: ${contextGraphId}` });
+
+    const statusEl = contentEl.createEl("p", { text: "" });
+    statusEl.style.cssText = "min-height: 1.4em; font-size: 0.9em; color: var(--text-muted);";
+
+    // Footer: [← Back] ........... [Power up vault]
+    const footer = this.wizardFooter(contentEl);
+    const backBtn = this.ghostButton(footer, "← Back");
+    const powerBtn = new ButtonComponent(footer);
+
+    backBtn.onClick(() => {
+      this.step = 1;
+      this.connectionTested = false;
+      this.renderStep();
+    });
+
+    powerBtn
+      .setButtonText("Power up vault")
+      .setCta()
+      .onClick(async () => {
+        powerBtn.setDisabled(true);
+        powerBtn.setButtonText("Working...");
+        backBtn.setDisabled(true);
+        statusEl.style.color = "var(--text-muted)";
+        try {
+          this.syncedCount = await this.plugin.createProjectFromVaultAndSyncNotes({
+            onStatus: (msg) => statusEl.setText(msg),
+            onProgress: (done, total) => statusEl.setText(`Syncing... ${done + 1} / ${total}`),
+          });
+          this.step = 3;
+          this.renderStep();
+        } catch (err) {
+          statusEl.setText(`Failed: ${errorMessage(err)}`);
+          statusEl.style.color = "var(--color-red)";
+          powerBtn.setDisabled(false);
+          powerBtn.setButtonText("Retry");
+          backBtn.setDisabled(false);
+        }
+      });
+  }
+
+  private renderStep3() {
+    const { contentEl } = this;
+    contentEl.createEl("h2", { text: "All done!" });
+    contentEl.createEl("p", {
+      text: `Vault linked to DKG Project "${this.plugin.settings.defaultContextGraphId}". ${this.syncedCount} note${this.syncedCount === 1 ? "" : "s"} synced to Working Memory.`,
+    });
+    contentEl.createEl("p", {
+      text: "Auto-sync is now on. Shared Memory promotion is off by default — enable it in Settings when ready.",
+    });
+
+    const footer = this.wizardFooter(contentEl);
+    footer.style.justifyContent = "flex-end";
+    new ButtonComponent(footer).setButtonText("Close").setCta().onClick(() => this.close());
   }
 }
 

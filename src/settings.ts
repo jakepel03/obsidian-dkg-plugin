@@ -1,5 +1,6 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import type OriginTrailSharedMemoryPlugin from "./main";
+import { SetupWizardModal } from "./main";
 
 export class OriginTrailSettingTab extends PluginSettingTab {
   constructor(
@@ -14,11 +15,19 @@ export class OriginTrailSettingTab extends PluginSettingTab {
     containerEl.empty();
 
     containerEl.createEl("h2", { text: "OriginTrail Shared Memory" });
-    containerEl
-      .createEl("p", {
-        text: "Connect this vault to an OriginTrail DKG v10 Project. Notes are imported into Working Memory first; Shared Memory promotion is optional.",
-      })
-      .addClass("origintrail-sm-muted");
+
+    // ── Setup ────────────────────────────────────────────────────────────────
+    containerEl.createEl("h3", { text: "Setup" });
+
+    new Setting(containerEl)
+      .setName("Setup wizard")
+      .setDesc("Re-run the step-by-step setup to connect to a DKG node and power up this vault.")
+      .addButton((btn) =>
+        btn.setButtonText("Run setup wizard").onClick(() => new SetupWizardModal(this.plugin).open())
+      );
+
+    // ── Connection ───────────────────────────────────────────────────────────
+    containerEl.createEl("h3", { text: "Connection" });
 
     new Setting(containerEl)
       .setName("DKG node URL")
@@ -47,11 +56,47 @@ export class OriginTrailSettingTab extends PluginSettingTab {
           });
       });
 
+    const CONN_IDLE_DESC = "Checks /api/status and /api/agent/identity with the current settings.";
+    const testConnSetting = new Setting(containerEl)
+      .setName("Test connection")
+      .setDesc(CONN_IDLE_DESC);
+    testConnSetting.addButton((btn) => {
+      btn.setButtonText("Test").onClick(async () => {
+        btn.setButtonText("Testing...");
+        btn.setDisabled(true);
+        testConnSetting.setDesc("Connecting...");
+        testConnSetting.descEl.style.color = "var(--text-muted)";
+
+        let nodeOk = false;
+        try {
+          const client = this.plugin.client();
+          await client.status();
+          nodeOk = true;
+          await client.identity();
+          testConnSetting.setDesc("Connected — node reachable, identity verified");
+          testConnSetting.descEl.style.color = "var(--color-green)";
+        } catch {
+          testConnSetting.setDesc(
+            nodeOk
+              ? "Node reachable but identity check failed — check your auth token"
+              : "Could not reach node — check the URL and that your node is running"
+          );
+          testConnSetting.descEl.style.color = "var(--color-red)";
+        } finally {
+          btn.setButtonText("Test");
+          btn.setDisabled(false);
+        }
+      });
+    });
+
+    // ── Vault ────────────────────────────────────────────────────────────────
+    containerEl.createEl("h3", { text: "Vault" });
+
     new Setting(containerEl)
-      .setName("Current DKG Project")
-      .setDesc(
-        this.plugin.settings.defaultContextGraphId || "No project linked yet. Use the vault-first command below."
-      )
+      .setName("Linked DKG Project")
+      .setDesc(this.plugin.settings.defaultContextGraphId
+        ? "The DKG context graph ID for this vault's project."
+        : "No project linked yet — run the setup wizard.")
       .addText((text) =>
         text
           .setPlaceholder("context graph id")
@@ -64,25 +109,26 @@ export class OriginTrailSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Power up this vault with OriginTrail Shared Memory")
-      .setDesc(
-        "Creates/links an OriginTrail DKG Project using this vault name, then imports all Markdown notes into Working Memory."
-      )
-      .addButton((button) =>
-        button
+      .setName("Power up vault")
+      .setDesc("Creates/links a DKG Project from this vault name and imports all Markdown notes into Working Memory.")
+      .addButton((btn) =>
+        btn
           .setButtonText("Power up vault")
           .setCta()
-          .onClick(() => this.plugin.createProjectFromVaultAndSyncNotes())
+          .onClick(() =>
+            this.plugin.createProjectFromVaultAndSyncNotes().catch((err) => {
+              console.error(err);
+              new Notice(`Create/sync failed: ${err instanceof Error ? err.message : String(err)}`, 12000);
+            })
+          )
       );
 
-    new Setting(containerEl)
-      .setName("Test DKG connection")
-      .setDesc("Checks /api/status and /api/agent/identity with the current settings.")
-      .addButton((button) => button.setButtonText("Test").onClick(() => this.plugin.testConnection()));
+    // ── Sync behaviour ───────────────────────────────────────────────────────
+    containerEl.createEl("h3", { text: "Sync behaviour" });
 
     new Setting(containerEl)
       .setName("Auto-sync saved notes")
-      .setDesc("When enabled, saved Markdown notes are imported into DKG Working Memory for the linked Project.")
+      .setDesc("Imports saved Markdown notes into DKG Working Memory for the linked Project.")
       .addToggle((toggle) =>
         toggle.setValue(this.plugin.settings.autoSync).onChange(async (value) => {
           this.plugin.settings.autoSync = value;
@@ -92,10 +138,8 @@ export class OriginTrailSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Promote saved notes to Shared Memory")
-      .setDesc(
-        "Optional. Leave off during early testing; when enabled, synced notes are promoted from Working Memory to Shared Memory."
-      )
+      .setName("Promote to Shared Memory")
+      .setDesc("When enabled, synced notes are promoted from Working Memory to Shared Memory. Leave off during early testing.")
       .addToggle((toggle) =>
         toggle.setValue(this.plugin.settings.autoPromote).onChange(async (value) => {
           this.plugin.settings.autoPromote = value;
@@ -105,7 +149,7 @@ export class OriginTrailSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Auto-sync debounce")
+      .setName("Debounce (ms)")
       .setDesc("Milliseconds to wait after a note is modified before syncing.")
       .addText((text) =>
         text
