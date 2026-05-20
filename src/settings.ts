@@ -1,6 +1,6 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import type OriginTrailSharedMemoryPlugin from "./main";
-import { SetupWizardModal } from "./main";
+import { SetupWizardModal } from "./wizard";
 
 export class OriginTrailSettingTab extends PluginSettingTab {
   constructor(
@@ -70,8 +70,12 @@ export class OriginTrailSettingTab extends PluginSettingTab {
           const client = this.plugin.client();
           await client.status();
           nodeOk = true;
-          await client.identity();
-          testConnSetting.setDesc("Connected — node reachable, identity verified");
+          if (this.plugin.settings.authToken.trim()) {
+            await client.identity();
+            testConnSetting.setDesc("Connected — node reachable, identity verified");
+          } else {
+            testConnSetting.setDesc("Connected — node reachable (no auth token configured)");
+          }
           testConnSetting.descEl.style.color = "var(--color-green)";
         } catch {
           testConnSetting.setDesc(
