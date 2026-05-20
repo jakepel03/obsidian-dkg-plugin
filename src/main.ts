@@ -1,9 +1,10 @@
-import { Modal, Notice, Plugin, Setting, TFile, requestUrl } from "obsidian";
+import { Notice, Plugin, TFile, requestUrl } from "obsidian";
 import { DkgClient } from "./dkgClient";
 import { makeVaultId, slugifyContextGraphId } from "./identity";
 import { syncAllMarkdownFiles, syncMarkdownFile, shouldSkipPath } from "./noteSync";
 import { OriginTrailSettingTab } from "./settings";
 import { DEFAULT_SETTINGS, type OriginTrailSettings } from "./types";
+import { SetupWizardModal } from "./wizard";
 
 export default class OriginTrailSharedMemoryPlugin extends Plugin {
   settings: OriginTrailSettings;
@@ -28,7 +29,11 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     this.addCommand({
       id: "create-project-from-current-vault-and-sync-notes",
       name: "Power up current vault with OriginTrail Shared Memory",
-      callback: () => this.createProjectFromVaultAndSyncNotes(),
+      callback: () =>
+        this.createProjectFromVaultAndSyncNotes().catch((err) => {
+          console.error(err);
+          new Notice(`Create/sync failed: ${errorMessage(err)}`, 12000);
+        }),
     });
 
     this.addCommand({
@@ -92,46 +97,50 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     }
   }
 
-  async createProjectFromVaultAndSyncNotes() {
+  async createProjectFromVaultAndSyncNotes(opts?: {
+    onStatus?: (msg: string) => void;
+    onProgress?: (done: number, total: number, file: TFile) => void;
+  }): Promise<number> {
+    const notify = opts?.onStatus ?? ((msg: string) => new Notice(msg));
     const vaultName = this.app.vault.getName();
     const contextGraphId = slugifyContextGraphId(vaultName);
     const client = this.client();
 
-    try {
-      new Notice(`Creating/linking DKG Project “${vaultName}”…`);
-      const graph = await client.ensureContextGraph(contextGraphId, vaultName);
-      this.settings.defaultContextGraphId = graph.id || contextGraphId;
-      this.settings.autoSync = true;
-      this.settings.hasSeenPowerUpPrompt = true;
-      await this.saveSettings();
-      this.updateStatusBar();
+    notify(`Creating/linking DKG Project "${vaultName}"...`);
+    const graph = await client.ensureContextGraph(contextGraphId, vaultName);
+    this.settings.defaultContextGraphId = graph.id || contextGraphId;
+    this.settings.autoSync = true;
+    this.settings.hasSeenPowerUpPrompt = true;
+    await this.saveSettings();
+    this.updateStatusBar();
 
-      new Notice(`Syncing Markdown notes to DKG Working Memory…`);
-      const results = await syncAllMarkdownFiles(
-        this.app,
-        client,
-        this.settings.defaultContextGraphId,
-        this.settings.vaultId,
-        this.settings.autoPromote,
-        (done, total, file) => {
+    notify(`Syncing Markdown notes to DKG Working Memory...`);
+    const results = await syncAllMarkdownFiles(
+      this.app,
+      client,
+      this.settings.defaultContextGraphId,
+      this.settings.vaultId,
+      this.settings.autoPromote,
+      opts?.onProgress ??
+        ((done, total, file) => {
           if (done === 0 || done % 5 === 0) new Notice(`DKG sync ${done + 1}/${total}: ${file.path}`, 2500);
-        }
-      );
+        })
+    );
 
+    if (!opts?.onStatus) {
       new Notice(
         `DKG Project linked: ${this.settings.defaultContextGraphId}. Synced ${results.length} notes to ${this.settings.autoPromote ? "Shared Memory" : "Working Memory"}.`,
         10000
       );
-    } catch (error) {
-      console.error(error);
-      new Notice(`Create/sync failed: ${errorMessage(error)}`, 12000);
     }
+
+    return results.length;
   }
 
   async syncFile(file: TFile) {
     if (!this.settings.defaultContextGraphId) {
       new Notice(
-        "This vault is not powered up yet. Run “Power up current vault with OriginTrail Shared Memory” first."
+        'This vault is not powered up yet. Run "Power up current vault with OriginTrail Shared Memory" first.'
       );
       return;
     }
@@ -169,44 +178,7 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
 
   private maybeShowPowerUpPrompt() {
     if (this.settings.defaultContextGraphId || this.settings.hasSeenPowerUpPrompt) return;
-    new PowerUpModal(this).open();
-  }
-}
-
-class PowerUpModal extends Modal {
-  constructor(private readonly plugin: OriginTrailSharedMemoryPlugin) {
-    super(plugin.app);
-  }
-
-  onOpen() {
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.createEl("h2", { text: "Power up this vault with OriginTrail Shared Memory" });
-    contentEl.createEl("p", {
-      text: "Create an OriginTrail DKG Project with this vault’s name and sync Markdown notes into DKG Working Memory. Shared Memory promotion stays off until you enable it.",
-    });
-
-    new Setting(contentEl)
-      .addButton((button) =>
-        button
-          .setButtonText("Power up vault")
-          .setCta()
-          .onClick(async () => {
-            this.close();
-            await this.plugin.createProjectFromVaultAndSyncNotes();
-          })
-      )
-      .addButton((button) =>
-        button.setButtonText("Maybe later").onClick(async () => {
-          this.plugin.settings.hasSeenPowerUpPrompt = true;
-          await this.plugin.saveSettings();
-          this.close();
-        })
-      );
-  }
-
-  onClose() {
-    this.contentEl.empty();
+    new SetupWizardModal(this).open();
   }
 }
 
