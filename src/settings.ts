@@ -1,6 +1,7 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import type OriginTrailSharedMemoryPlugin from "./main";
 import { SetupWizardModal } from "./wizard";
+import { runConnectionTest } from "./utils";
 
 export class OriginTrailSettingTab extends PluginSettingTab {
   constructor(
@@ -60,34 +61,8 @@ export class OriginTrailSettingTab extends PluginSettingTab {
     const testConnSetting = new Setting(containerEl).setName("Test connection").setDesc(CONN_IDLE_DESC);
     testConnSetting.addButton((btn) => {
       btn.setButtonText("Test").onClick(async () => {
-        btn.setButtonText("Testing...");
-        btn.setDisabled(true);
-        testConnSetting.setDesc("Connecting...");
-        testConnSetting.descEl.style.color = "var(--text-muted)";
-
-        let nodeOk = false;
-        try {
-          const client = this.plugin.client();
-          await client.status();
-          nodeOk = true;
-          if (this.plugin.settings.authToken.trim()) {
-            await client.identity();
-            testConnSetting.setDesc("Connected — node reachable, identity verified");
-          } else {
-            testConnSetting.setDesc("Connected — node reachable (no auth token configured)");
-          }
-          testConnSetting.descEl.style.color = "var(--color-green)";
-        } catch {
-          testConnSetting.setDesc(
-            nodeOk
-              ? "Node reachable but identity check failed — check your auth token"
-              : "Could not reach node — check the URL and that your node is running"
-          );
-          testConnSetting.descEl.style.color = "var(--color-red)";
-        } finally {
-          btn.setButtonText("Test");
-          btn.setDisabled(false);
-        }
+        const skipIdentity = !this.plugin.settings.authToken.trim();
+        await runConnectionTest(this.plugin.client(), testConnSetting, btn, skipIdentity);
       });
     });
 
