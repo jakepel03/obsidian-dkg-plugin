@@ -16,17 +16,12 @@ interface WizardPlugin {
 }
 
 export class SetupWizardModal extends Modal {
-  private step: 1 | 2 | 3;
+  private step: 1 | 2 | 3 = 1;
   private connectionTested = false;
   private syncedCount = 0;
 
-  constructor(
-    private readonly plugin: WizardPlugin,
-    startStep: 1 | 2 | 3 = 1
-  ) {
+  constructor(private readonly plugin: WizardPlugin) {
     super(plugin.app);
-    this.step = startStep;
-    if (startStep >= 2) this.connectionTested = true;
   }
 
   onOpen() {
