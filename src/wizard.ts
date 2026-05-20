@@ -16,7 +16,7 @@ interface WizardPlugin {
 }
 
 export class SetupWizardModal extends Modal {
-  private step = 1;
+  private step: 1 | 2 | 3 = 1;
   private connectionTested = false;
   private syncedCount = 0;
 
@@ -37,9 +37,38 @@ export class SetupWizardModal extends Modal {
   private renderStep() {
     const { contentEl } = this;
     contentEl.empty();
+    this.renderProgressIndicator();
     if (this.step === 1) this.renderStep1();
     else if (this.step === 2) this.renderStep2();
     else this.renderStep3();
+  }
+
+  private renderProgressIndicator() {
+    const { contentEl } = this;
+    const steps = ["Connect", "Power up", "Done"];
+    const wrapper = contentEl.createDiv();
+    wrapper.style.cssText = "display: flex; gap: 8px; margin-bottom: 20px;";
+
+    steps.forEach((label, i) => {
+      const stepNum = (i + 1) as 1 | 2 | 3;
+      const isActive = stepNum === this.step;
+      const isDone = stepNum < this.step;
+
+      const pill = wrapper.createDiv();
+      pill.style.cssText = "flex: 1; display: flex; flex-direction: column; gap: 4px;";
+
+      const bar = pill.createDiv();
+      bar.style.cssText =
+        "height: 3px; border-radius: 2px; background: " +
+        (isActive || isDone ? "var(--interactive-accent)" : "var(--background-modifier-border)") +
+        ";";
+
+      const lbl = pill.createEl("span", { text: label });
+      lbl.style.cssText =
+        "font-size: 0.72em; text-align: center; color: " +
+        (isActive ? "var(--text-normal)" : "var(--text-muted)") +
+        ";";
+    });
   }
 
   private wizardFooter(el: HTMLElement): HTMLElement {
@@ -58,7 +87,10 @@ export class SetupWizardModal extends Modal {
 
   private renderStep1() {
     const { contentEl } = this;
-    contentEl.createEl("h2", { text: "Step 1 of 3 — Connect to your DKG node" });
+    contentEl.createEl("h2", { text: "Connect to your DKG node" });
+    contentEl.createEl("p", {
+      text: "This wizard links your vault to a DKG node so your notes can be stored as structured knowledge. Start by pointing the plugin at your node and verifying the connection.",
+    });
 
     const IDLE_DESC = "Verify that the plugin can reach your DKG node with the credentials above.";
     const refs: { nextBtn?: ButtonComponent; testSetting?: Setting } = {};
@@ -129,7 +161,7 @@ export class SetupWizardModal extends Modal {
     const vaultName = this.plugin.app.vault.getName();
     const contextGraphId = slugifyContextGraphId(vaultName);
 
-    contentEl.createEl("h2", { text: "Step 2 of 3 — Power up this vault" });
+    contentEl.createEl("h2", { text: "Power up this vault" });
     contentEl.createEl("p", {
       text: "Power up creates a DKG Project linked to this vault and imports all Markdown notes into Working Memory. Shared Memory promotion stays off until you enable it in Settings.",
     });
@@ -139,7 +171,7 @@ export class SetupWizardModal extends Modal {
       "background: var(--background-secondary); border-radius: 6px;" +
       " padding: 10px 14px; margin: 12px 0; font-size: 0.9em; line-height: 1.8;";
     infoBox.createEl("div", { text: `Vault: ${vaultName}` });
-    infoBox.createEl("div", { text: `Context graph: ${contextGraphId}` });
+    infoBox.createEl("div", { text: `DKG Project: ${contextGraphId}` });
 
     const statusEl = contentEl.createEl("p", { text: "" });
     statusEl.style.cssText = "min-height: 1.4em; font-size: 0.9em; color: var(--text-muted);";
@@ -188,6 +220,9 @@ export class SetupWizardModal extends Modal {
     });
     contentEl.createEl("p", {
       text: "Auto-sync is now on. Shared Memory promotion is off by default — enable it in Settings when ready.",
+    });
+    contentEl.createEl("p", {
+      text: "You can change these settings at any time from Settings → OriginTrail Shared Memory.",
     });
 
     const footer = this.wizardFooter(contentEl);
