@@ -198,4 +198,3 @@ export class SetupWizardModal extends Modal {
       .onClick(() => this.close());
   }
 }
-
