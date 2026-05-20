@@ -20,7 +20,10 @@ export class SetupWizardModal extends Modal {
   private connectionTested = false;
   private syncedCount = 0;
 
-  constructor(private readonly plugin: WizardPlugin, startStep: 1 | 2 | 3 = 1) {
+  constructor(
+    private readonly plugin: WizardPlugin,
+    startStep: 1 | 2 | 3 = 1
+  ) {
     super(plugin.app);
     this.step = startStep;
     if (startStep >= 2) this.connectionTested = true;
