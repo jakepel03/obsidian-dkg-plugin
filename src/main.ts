@@ -5,6 +5,7 @@ import { syncAllMarkdownFiles, syncMarkdownFile, shouldSkipPath } from "./noteSy
 import { OriginTrailSettingTab } from "./settings";
 import { DEFAULT_SETTINGS, type OriginTrailSettings } from "./types";
 import { SetupWizardModal } from "./wizard";
+import { errorMessage } from "./utils";
 
 export default class OriginTrailSharedMemoryPlugin extends Plugin {
   settings: OriginTrailSettings;
@@ -180,8 +181,4 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     if (this.settings.defaultContextGraphId || this.settings.hasSeenPowerUpPrompt) return;
     new SetupWizardModal(this).open();
   }
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

@@ -1,6 +1,7 @@
 import { App, ButtonComponent, Modal, Setting, TFile } from "obsidian";
 import { slugifyContextGraphId } from "./identity";
 import type { DkgClient } from "./dkgClient";
+import { errorMessage, runConnectionTest } from "./utils";
 import type { OriginTrailSettings } from "./types";
 
 interface WizardPlugin {
@@ -97,37 +98,14 @@ export class SetupWizardModal extends Modal {
 
     refs.testSetting.addButton((btn) => {
       btn.setButtonText("Test").onClick(async () => {
-        btn.setButtonText("Testing...");
-        btn.setDisabled(true);
-        refs.testSetting!.setDesc("Connecting...");
-        refs.testSetting!.descEl.style.color = "var(--text-muted)";
-
-        let nodeOk = false;
-        try {
-          const client = this.plugin.client();
-          await client.status();
-          nodeOk = true;
-
-          await client.identity();
-          refs.testSetting!.setDesc("Connected — node reachable, identity verified");
-          refs.testSetting!.descEl.style.color = "var(--color-green)";
-
+        const ok = await runConnectionTest(this.plugin.client(), refs.testSetting!, btn);
+        if (ok) {
           await this.plugin.saveSettings();
           this.connectionTested = true;
           refs.nextBtn?.setDisabled(false);
-        } catch (err) {
-          console.error("[DKG wizard] connection test failed:", err);
-          refs.testSetting!.setDesc(
-            nodeOk
-              ? "Node reachable but identity check failed — check your auth token"
-              : "Could not reach node — check the URL and that your node is running"
-          );
-          refs.testSetting!.descEl.style.color = "var(--color-red)";
+        } else {
           this.connectionTested = false;
           refs.nextBtn?.setDisabled(true);
-        } finally {
-          btn.setButtonText("Test");
-          btn.setDisabled(false);
         }
       });
     });
@@ -219,8 +197,4 @@ export class SetupWizardModal extends Modal {
       .setCta()
       .onClick(() => this.close());
   }
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
