@@ -140,9 +140,7 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
 
   async syncFile(file: TFile) {
     if (!this.settings.defaultContextGraphId) {
-      new Notice(
-        'This vault is not powered up yet. Run "Power up current vault with OriginTrail DKG" first.'
-      );
+      new Notice('This vault is not powered up yet. Run "Power up current vault with OriginTrail DKG" first.');
       return;
     }
     if (file.extension !== "md" || shouldSkipPath(file.path)) return;
