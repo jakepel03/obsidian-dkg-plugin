@@ -30,7 +30,7 @@ export class OriginTrailSettingTab extends PluginSettingTab {
           btn
             .setButtonText("Run setup wizard")
             .setCta()
-            .onClick(() => new SetupWizardModal(this.plugin).open())
+            .onClick(() => new SetupWizardModal(this.plugin, () => this.display()).open())
         );
     } else {
       containerEl.createEl("h3", { text: "Status" });
@@ -59,7 +59,7 @@ export class OriginTrailSettingTab extends PluginSettingTab {
       reconfigBtn.setButtonText("Reconfigure →");
       reconfigBtn.buttonEl.style.cssText =
         "background: none; box-shadow: none; color: var(--text-muted); font-size: 0.85em; padding: 0; margin-top: 2px;";
-      reconfigBtn.onClick(() => new SetupWizardModal(this.plugin).open());
+      reconfigBtn.onClick(() => new SetupWizardModal(this.plugin, () => this.display()).open());
     }
 
     // ── Connection ───────────────────────────────────────────────────────────
