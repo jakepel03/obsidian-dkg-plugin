@@ -1,10 +1,10 @@
 {
-  "id": "origintrail-shared-memory",
-  "name": "OriginTrail Shared Memory",
+  "id": "origintrail-dkg",
+  "name": "OriginTrail DKG for Obsidian",
   "version": "0.1.0",
   "minAppVersion": "1.5.0",
-  "description": "Create an OriginTrail DKG Project from an Obsidian vault and sync Markdown notes into DKG Working Memory.",
-  "author": "Zigoljube / OriginTrail",
-  "authorUrl": "https://origintrail.io",
+  "description": "Sync Obsidian notes to a local OriginTrail DKG v10 node. Supports Working Memory and Shared Memory layers.",
+  "author": "Jaka Pelko",
+  "authorUrl": "https://github.com/jakepel03",
   "isDesktopOnly": false
 }

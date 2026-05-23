@@ -15,7 +15,7 @@ export class OriginTrailSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "OriginTrail Shared Memory" });
+    containerEl.createEl("h2", { text: "OriginTrail DKG" });
 
     const isLinked = Boolean(this.plugin.settings.defaultContextGraphId);
 
