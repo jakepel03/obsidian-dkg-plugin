@@ -12,6 +12,7 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
   private statusBarEl: HTMLElement;
   private pendingSyncTimers = new Map<string, number>();
   private activeSyncs = 0;
+  private hadSyncError = false;
   private savedStatusTimer: number | null = null;
 
   async onload() {
@@ -160,9 +161,9 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     }
     if (file.extension !== "md" || shouldSkipPath(file.path)) return;
 
+    if (this.activeSyncs === 0) this.hadSyncError = false;
     this.activeSyncs++;
     this.setStatusSyncing();
-    let failed = false;
     try {
       const result = await syncMarkdownFile(
         this.app,
@@ -174,13 +175,13 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
       );
       if (!silent) new Notice(`DKG ${result.status}: ${file.path}`);
     } catch (error) {
-      failed = true;
+      this.hadSyncError = true;
       console.error(error);
       new Notice(`DKG sync failed for ${file.path}: ${errorMessage(error)}`, 10000);
     } finally {
       this.activeSyncs--;
       if (this.activeSyncs === 0) {
-        if (failed) this.updateStatusBar();
+        if (this.hadSyncError) this.updateStatusBar();
         else this.setStatusSaved();
       }
     }
