@@ -1,5 +1,4 @@
-# Obsidian OriginTrail Shared Memory
-
+# OriginTrail DKG for Obsidian
 
 Obsidian plugin for turning an Obsidian vault into an OriginTrail DKG v10 Project and syncing Markdown notes into DKG memory.
 
@@ -10,7 +9,7 @@ Obsidian plugin for turning an Obsidian vault into an OriginTrail DKG v10 Projec
 Obsidian is already one of the best tools for building a personal knowledge base:
 a second brain where notes, ideas, references, and insights compound over time.
 
-The Obsidian OriginTrail Shared Memory plugin takes that further. It helps turn a
+The OriginTrail DKG plugin takes that further. It helps turn a
 private second brain into part of a broader, verifiable knowledge network, moving
 from personal memory toward collective intelligence.
 
@@ -51,7 +50,7 @@ verifiable intelligence.
 
 If you are new to Obsidian, OriginTrail DKG, or both, follow the full beginner journey:
 
-[Fresh user journey: Obsidian + OriginTrail DKG + Shared Memory plugin](INSTALL.md)
+[Fresh user journey: Obsidian + OriginTrail DKG](INSTALL.md)
 
 That guide covers:
 
@@ -66,7 +65,7 @@ That guide covers:
 
 1. Open or create an Obsidian vault.
 2. Configure the local DKG node URL and auth token in plugin settings.
-3. Run **OriginTrail Shared Memory: Power up current vault with OriginTrail Shared Memory** or click **Power up vault** in settings.
+3. Run **OriginTrail DKG: Power up current vault with OriginTrail DKG** or click **Power up vault** in settings.
 
    ![Power up vault prompt in Obsidian](docs/images/power-up-vault-prompt.jpg)
 

@@ -1,7 +1,7 @@
 {
-  "name": "obsidian-origintrail-shared-memory",
+  "name": "obsidian-origintrail-dkg",
   "version": "0.1.0",
-  "description": "Obsidian plugin that turns a vault into an OriginTrail DKG v10 Project and syncs notes into Working/Shared Memory.",
+  "description": "Obsidian plugin that syncs notes to a local OriginTrail DKG v10 node.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
@@ -21,7 +21,7 @@
     "shared-memory",
     "working-memory"
   ],
-  "author": "Zigoljube",
+  "author": "Jaka Pelko",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^22.10.2",

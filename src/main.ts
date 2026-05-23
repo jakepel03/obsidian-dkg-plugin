@@ -29,7 +29,7 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
 
     this.addCommand({
       id: "create-project-from-current-vault-and-sync-notes",
-      name: "Power up current vault with OriginTrail Shared Memory",
+      name: "Power up current vault with OriginTrail DKG",
       callback: () =>
         this.createProjectFromVaultAndSyncNotes().catch((err) => {
           console.error(err);
@@ -140,9 +140,7 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
 
   async syncFile(file: TFile) {
     if (!this.settings.defaultContextGraphId) {
-      new Notice(
-        'This vault is not powered up yet. Run "Power up current vault with OriginTrail Shared Memory" first.'
-      );
+      new Notice('This vault is not powered up yet. Run "Power up current vault with OriginTrail DKG" first.');
       return;
     }
     if (file.extension !== "md" || shouldSkipPath(file.path)) return;
