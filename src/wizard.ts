@@ -19,9 +19,16 @@ export class SetupWizardModal extends Modal {
   private step: 1 | 2 | 3 = 1;
   private connectionTested = false;
   private syncedCount = 0;
+  private readonly initialUrl: string;
+  private readonly initialToken: string;
 
-  constructor(private readonly plugin: WizardPlugin) {
+  constructor(
+    private readonly plugin: WizardPlugin,
+    private readonly onAfterClose?: () => void
+  ) {
     super(plugin.app);
+    this.initialUrl = plugin.settings.dkgNodeUrl;
+    this.initialToken = plugin.settings.authToken;
   }
 
   onOpen() {
@@ -31,6 +38,13 @@ export class SetupWizardModal extends Modal {
   onClose() {
     this.contentEl.empty();
     this.plugin.settings.hasSeenPowerUpPrompt = true;
+    if (this.step < 3) {
+      // Wizard didn't complete — discard any credential edits from step 1
+      this.plugin.settings.dkgNodeUrl = this.initialUrl;
+      this.plugin.settings.authToken = this.initialToken;
+    } else {
+      this.onAfterClose?.();
+    }
     void this.plugin.saveSettings();
   }
 
@@ -108,7 +122,6 @@ export class SetupWizardModal extends Modal {
       text.setPlaceholder("http://127.0.0.1:9200").setValue(this.plugin.settings.dkgNodeUrl);
       text.inputEl.addEventListener("input", () => {
         this.plugin.settings.dkgNodeUrl = text.getValue().trim();
-        void this.plugin.saveSettings();
         invalidateTest();
       });
     });
@@ -121,7 +134,6 @@ export class SetupWizardModal extends Modal {
         text.setPlaceholder("Paste DKG auth token").setValue(this.plugin.settings.authToken);
         text.inputEl.addEventListener("input", () => {
           this.plugin.settings.authToken = text.getValue().trim();
-          void this.plugin.saveSettings();
           invalidateTest();
         });
       });
@@ -132,7 +144,6 @@ export class SetupWizardModal extends Modal {
       btn.setButtonText("Test").onClick(async () => {
         const ok = await runConnectionTest(this.plugin.client(), refs.testSetting!, btn);
         if (ok) {
-          await this.plugin.saveSettings();
           this.connectionTested = true;
           refs.nextBtn?.setDisabled(false);
         } else {

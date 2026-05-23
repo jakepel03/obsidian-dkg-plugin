@@ -30,11 +30,7 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     this.addCommand({
       id: "create-project-from-current-vault-and-sync-notes",
       name: "Power up current vault with OriginTrail DKG",
-      callback: () =>
-        this.createProjectFromVaultAndSyncNotes().catch((err) => {
-          console.error(err);
-          new Notice(`Create/sync failed: ${errorMessage(err)}`, 12000);
-        }),
+      callback: () => new SetupWizardModal(this).open(),
     });
 
     this.addCommand({
@@ -138,7 +134,7 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     return results.length;
   }
 
-  async syncFile(file: TFile) {
+  async syncFile(file: TFile, silent = false) {
     if (!this.settings.defaultContextGraphId) {
       new Notice('This vault is not powered up yet. Run "Power up current vault with OriginTrail DKG" first.');
       return;
@@ -154,7 +150,7 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
         file,
         this.settings.autoPromote
       );
-      new Notice(`DKG ${result.status}: ${file.path}`);
+      if (!silent) new Notice(`DKG ${result.status}: ${file.path}`);
     } catch (error) {
       console.error(error);
       new Notice(`DKG sync failed for ${file.path}: ${errorMessage(error)}`, 10000);
@@ -170,7 +166,7 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
 
     const timer = window.setTimeout(() => {
       this.pendingSyncTimers.delete(file.path);
-      this.syncFile(file);
+      this.syncFile(file, true);
     }, this.settings.syncDebounceMs);
     this.pendingSyncTimers.set(file.path, timer);
   }
