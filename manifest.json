@@ -1,6 +1,6 @@
 {
   "id": "origintrail-dkg",
-  "name": "OriginTrail DKG for Obsidian",
+  "name": "OriginTrail DKG",
   "version": "0.1.0",
   "minAppVersion": "1.5.0",
   "description": "Sync Obsidian notes to a local OriginTrail DKG v10 node. Supports Working Memory and Shared Memory layers.",

@@ -50,7 +50,7 @@ verifiable intelligence.
 
 If you are new to Obsidian, OriginTrail DKG, or both, follow the full beginner journey:
 
-[Fresh user journey: Obsidian + OriginTrail DKG for Obsidian](INSTALL.md)
+[Fresh user journey: Obsidian + OriginTrail DKG](INSTALL.md)
 
 That guide covers:
 
