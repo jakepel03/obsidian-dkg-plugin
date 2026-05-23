@@ -11,6 +11,8 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
   settings: OriginTrailSettings;
   private statusBarEl: HTMLElement;
   private pendingSyncTimers = new Map<string, number>();
+  private activeSyncs = 0;
+  private savedStatusTimer: number | null = null;
 
   async onload() {
     await this.loadSettings();
@@ -56,6 +58,7 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
   onunload() {
     for (const timer of this.pendingSyncTimers.values()) window.clearTimeout(timer);
     this.pendingSyncTimers.clear();
+    if (this.savedStatusTimer !== null) window.clearTimeout(this.savedStatusTimer);
   }
 
   async loadSettings() {
@@ -80,6 +83,22 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     const layer = this.settings.autoPromote ? "Shared Memory" : "Working Memory";
     const sync = this.settings.autoSync ? "auto-sync on" : "auto-sync off";
     this.statusBarEl.setText(`DKG: ${project} · ${layer} · ${sync}`);
+  }
+
+  private setStatusSyncing() {
+    if (this.savedStatusTimer !== null) {
+      window.clearTimeout(this.savedStatusTimer);
+      this.savedStatusTimer = null;
+    }
+    this.statusBarEl.setText("DKG: syncing…");
+  }
+
+  private setStatusSaved() {
+    this.statusBarEl.setText("DKG: saved ✓");
+    this.savedStatusTimer = window.setTimeout(() => {
+      this.savedStatusTimer = null;
+      this.updateStatusBar();
+    }, 3000);
   }
 
   async testConnection() {
@@ -141,6 +160,9 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     }
     if (file.extension !== "md" || shouldSkipPath(file.path)) return;
 
+    this.activeSyncs++;
+    this.setStatusSyncing();
+    let failed = false;
     try {
       const result = await syncMarkdownFile(
         this.app,
@@ -152,8 +174,15 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
       );
       if (!silent) new Notice(`DKG ${result.status}: ${file.path}`);
     } catch (error) {
+      failed = true;
       console.error(error);
       new Notice(`DKG sync failed for ${file.path}: ${errorMessage(error)}`, 10000);
+    } finally {
+      this.activeSyncs--;
+      if (this.activeSyncs === 0) {
+        if (failed) this.updateStatusBar();
+        else this.setStatusSaved();
+      }
     }
   }
 
