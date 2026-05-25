@@ -14,8 +14,26 @@ describe("identity helpers", () => {
     expect(normalizeVaultPath("/Folder/Note.md")).toBe("Folder/Note.md");
   });
 
-  it("creates assertion names with note hash prefix", async () => {
-    const name = await makeAssertionName("vault-1", "Folder/Note.md", "Hello DKG");
-    expect(name).toMatch(/^obsidian-note-[a-f0-9]{16}-\d{8}T\d{6}Z$/);
+  it("creates stable assertion names from vault id and file path only", async () => {
+    const name = await makeAssertionName("vault-1", "Folder/Note.md");
+    expect(name).toMatch(/^obsidian-note-[a-f0-9]{16}$/);
+  });
+
+  it("assertion name is stable across content edits", async () => {
+    const a = await makeAssertionName("vault-1", "Folder/Note.md");
+    const b = await makeAssertionName("vault-1", "Folder/Note.md");
+    expect(a).toBe(b);
+  });
+
+  it("assertion name differs for different file paths", async () => {
+    const a = await makeAssertionName("vault-1", "Folder/Note.md");
+    const b = await makeAssertionName("vault-1", "Folder/Other.md");
+    expect(a).not.toBe(b);
+  });
+
+  it("assertion name differs for different vault ids", async () => {
+    const a = await makeAssertionName("vault-1", "Folder/Note.md");
+    const b = await makeAssertionName("vault-2", "Folder/Note.md");
+    expect(a).not.toBe(b);
   });
 });
