@@ -20,8 +20,7 @@ export async function syncMarkdownFile(
   autoPromote: boolean
 ): Promise<SyncResult> {
   const content = await app.vault.read(file);
-  const assertionName = await makeAssertionName(vaultId, file.path, content);
-  await client.createAssertion(contextGraphId, assertionName);
+  const assertionName = await makeAssertionName(vaultId, file.path);
   const imported: any = await client.importMarkdown(contextGraphId, assertionName, file.name, content);
 
   let tripleCount = imported?.extraction?.tripleCount;
