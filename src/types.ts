@@ -1,5 +1,12 @@
 import type { RequestUrlParam, RequestUrlResponse } from "obsidian";
 
+export interface SubscribedContextGraph {
+  id: string;
+  name: string;
+  role: "owner" | "member";
+  curated?: boolean;
+}
+
 export interface OriginTrailSettings {
   dkgNodeUrl: string;
   authToken: string;
@@ -9,6 +16,7 @@ export interface OriginTrailSettings {
   syncDebounceMs: number;
   vaultId: string;
   hasSeenPowerUpPrompt: boolean;
+  subscribedContextGraphs: SubscribedContextGraph[];
 }
 
 export const DEFAULT_SETTINGS: OriginTrailSettings = {
@@ -20,6 +28,7 @@ export const DEFAULT_SETTINGS: OriginTrailSettings = {
   syncDebounceMs: 1500,
   vaultId: "",
   hasSeenPowerUpPrompt: false,
+  subscribedContextGraphs: [],
 };
 
 export type RequestTransport = (request: RequestUrlParam) => Promise<RequestUrlResponse>;
@@ -36,4 +45,8 @@ export interface SyncResult {
   assertionName: string;
   status: "imported" | "promoted";
   tripleCount?: number;
+  /** The context graph the note was actually synced into (primary or a shared project). */
+  contextGraphId?: string;
+  /** Set when routing fell back, e.g. an unknown `shared_to` project. */
+  warning?: string;
 }

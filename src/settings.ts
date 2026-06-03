@@ -1,6 +1,9 @@
 import { App, ButtonComponent, PluginSettingTab, Setting } from "obsidian";
 import type OriginTrailSharedMemoryPlugin from "./main";
 import { SetupWizardModal } from "./wizard";
+import { CreateProjectModal } from "./createProjectModal";
+import { JoinProjectModal } from "./joinProjectModal";
+import { ManageMembersModal } from "./manageMembersModal";
 import { runConnectionTest } from "./utils";
 
 export class OriginTrailSettingTab extends PluginSettingTab {
@@ -55,12 +58,73 @@ export class OriginTrailSettingTab extends PluginSettingTab {
       makeRow("DKG Project", this.plugin.settings.defaultContextGraphId);
       makeRow("Node", this.plugin.settings.dkgNodeUrl || "(not set)");
 
-      const reconfigBtn = new ButtonComponent(card);
+      const btnGroup = card.createDiv();
+      btnGroup.style.cssText = "display: flex; flex-direction: column; gap: 6px; align-items: flex-end;";
+
+      const manageBtn = new ButtonComponent(btnGroup);
+      manageBtn.setButtonText("Manage access");
+      manageBtn.buttonEl.style.cssText = "font-size: 0.85em;";
+      manageBtn.onClick(() => {
+        const cgId = this.plugin.settings.defaultContextGraphId;
+        const name = this.plugin.app.vault.getName();
+        new ManageMembersModal(this.plugin, cgId, name, false).open();
+      });
+
+      const reconfigBtn = new ButtonComponent(btnGroup);
       reconfigBtn.setButtonText("Reconfigure →");
       reconfigBtn.buttonEl.style.cssText =
-        "background: none; box-shadow: none; color: var(--text-muted); font-size: 0.85em; padding: 0; margin-top: 2px;";
+        "background: none; box-shadow: none; color: var(--text-muted); font-size: 0.85em; padding: 0;";
       reconfigBtn.onClick(() => new SetupWizardModal(this.plugin, () => this.display()).open());
     }
+
+    // ── Projects ─────────────────────────────────────────────────────────────
+    containerEl.createEl("h3", { text: "Projects" });
+
+    const subscribed = this.plugin.settings.subscribedContextGraphs;
+
+    if (subscribed.length === 0) {
+      const empty = containerEl.createEl("p", { text: "No shared projects yet." });
+      empty.style.cssText = "color: var(--text-muted); font-size: 0.9em; margin: 4px 0 12px;";
+    } else {
+      for (const cg of subscribed) {
+        const s = new Setting(containerEl)
+          .setName(cg.name || cg.id)
+          .setDesc(`${cg.role === "owner" ? "Owner" : "Member"} · ${cg.id}`);
+
+        if (cg.role === "owner") {
+          s.addButton((btn) =>
+            btn.setButtonText("Manage members").onClick(() =>
+              new ManageMembersModal(this.plugin, cg.id, cg.name || cg.id, cg.curated).open()
+            )
+          );
+        }
+
+        s.addButton((btn) =>
+          btn
+            .setButtonText("Remove")
+            .setWarning()
+            .onClick(async () => {
+              this.plugin.settings.subscribedContextGraphs =
+                this.plugin.settings.subscribedContextGraphs.filter((c) => c.id !== cg.id);
+              await this.plugin.saveSettings();
+              this.display();
+            })
+        );
+      }
+    }
+
+    new Setting(containerEl)
+      .addButton((btn) =>
+        btn
+          .setButtonText("Create shared project")
+          .setCta()
+          .onClick(() => new CreateProjectModal(this.plugin, () => this.display()).open())
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText("Join shared project")
+          .onClick(() => new JoinProjectModal(this.plugin, () => this.display()).open())
+      );
 
     // ── Connection ───────────────────────────────────────────────────────────
     containerEl.createEl("h3", { text: "Connection" });

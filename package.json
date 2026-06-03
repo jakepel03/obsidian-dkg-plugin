@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc --noEmit --skipLibCheck && node esbuild.config.mjs production",
+    "deploy": "bash scripts/deploy-to-vault.sh",
     "test": "vitest run",
     "lint": "eslint src tests",
     "format": "prettier --write src tests",
