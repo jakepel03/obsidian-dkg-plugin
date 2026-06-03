@@ -31,15 +31,11 @@ export class JoinProjectModal extends Modal {
     contentEl.createEl("h2", { text: "Join shared project" });
     contentEl.createEl("p", { text: "Paste the invite code you received from the project curator." });
 
-    new Setting(contentEl)
-      .setName("Invite code")
-      .addTextArea((text) => {
-        text.inputEl.rows = 3;
-        text.inputEl.style.cssText = "width: 100%; font-family: var(--font-monospace); font-size: 0.85em;";
-        text
-          .setPlaceholder("project-id\ncuratorPeerId")
-          .onChange((v) => (this.inviteCode = v.trim()));
-      });
+    new Setting(contentEl).setName("Invite code").addTextArea((text) => {
+      text.inputEl.rows = 3;
+      text.inputEl.style.cssText = "width: 100%; font-family: var(--font-monospace); font-size: 0.85em;";
+      text.setPlaceholder("project-id\ncuratorPeerId").onChange((v) => (this.inviteCode = v.trim()));
+    });
 
     new Setting(contentEl).addButton((btn) =>
       btn
@@ -70,7 +66,12 @@ export class JoinProjectModal extends Modal {
       if (curatorPeerId) {
         const signResult = await client.signJoinRequest(cgId);
         const delegation = signResult.delegation ?? signResult;
-        const result = await client.requestJoin(cgId, delegation, identity.name ?? identity.agentAddress, curatorPeerId);
+        const result = await client.requestJoin(
+          cgId,
+          delegation,
+          identity.name ?? identity.agentAddress,
+          curatorPeerId
+        );
 
         if (result?.alreadyMember || result?.status === "already-member") {
           await this.subscribe();

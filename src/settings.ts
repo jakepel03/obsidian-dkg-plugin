@@ -93,9 +93,9 @@ export class OriginTrailSettingTab extends PluginSettingTab {
 
         if (cg.role === "owner") {
           s.addButton((btn) =>
-            btn.setButtonText("Manage members").onClick(() =>
-              new ManageMembersModal(this.plugin, cg.id, cg.name || cg.id, cg.curated).open()
-            )
+            btn
+              .setButtonText("Manage members")
+              .onClick(() => new ManageMembersModal(this.plugin, cg.id, cg.name || cg.id, cg.curated).open())
           );
         }
 
@@ -104,8 +104,9 @@ export class OriginTrailSettingTab extends PluginSettingTab {
             .setButtonText("Remove")
             .setWarning()
             .onClick(async () => {
-              this.plugin.settings.subscribedContextGraphs =
-                this.plugin.settings.subscribedContextGraphs.filter((c) => c.id !== cg.id);
+              this.plugin.settings.subscribedContextGraphs = this.plugin.settings.subscribedContextGraphs.filter(
+                (c) => c.id !== cg.id
+              );
               await this.plugin.saveSettings();
               this.display();
             })

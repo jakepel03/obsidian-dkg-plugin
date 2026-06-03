@@ -75,9 +75,10 @@ export class CreateProjectModal extends Modal {
       const identity = await client.getIdentity();
       const cgId = slugifyContextGraphId(this.name);
 
-      const createFn = this.mode === "curated"
-        ? () => client.createCuratedContextGraph(cgId, this.name)
-        : () => client.createContextGraph(cgId, this.name);
+      const createFn =
+        this.mode === "curated"
+          ? () => client.createCuratedContextGraph(cgId, this.name)
+          : () => client.createContextGraph(cgId, this.name);
 
       try {
         await createFn();
@@ -93,7 +94,12 @@ export class CreateProjectModal extends Modal {
 
       const already = this.plugin.settings.subscribedContextGraphs.find((c) => c.id === cgId);
       if (!already) {
-        this.plugin.settings.subscribedContextGraphs.push({ id: cgId, name: this.name, role: "owner", curated: this.mode === "curated" });
+        this.plugin.settings.subscribedContextGraphs.push({
+          id: cgId,
+          name: this.name,
+          role: "owner",
+          curated: this.mode === "curated",
+        });
         await this.plugin.saveSettings();
       }
 

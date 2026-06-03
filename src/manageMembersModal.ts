@@ -40,33 +40,35 @@ export class ManageMembersModal extends Modal {
         "display: block; padding: 10px; background: var(--background-secondary);" +
         " border-radius: 6px; word-break: break-all; margin: 8px 0; font-size: 0.82em; white-space: pre-wrap;";
       codeEl.setText(inviteCode);
-      const desc = inviteContainer.createEl("p", { text: "Share this ID with teammates. They paste it into 'Join shared project'." });
+      const desc = inviteContainer.createEl("p", {
+        text: "Share this ID with teammates. They paste it into 'Join shared project'.",
+      });
       desc.style.cssText = "color: var(--text-muted); font-size: 0.85em; margin: 0 0 8px;";
-      new Setting(inviteContainer)
-        .addButton((btn) =>
-          btn
-            .setButtonText("Copy invite code")
-            .setCta()
-            .onClick(async () => {
-              await navigator.clipboard.writeText(inviteCode);
-              btn.setButtonText("Copied!");
-              setTimeout(() => btn.setButtonText("Copy invite code"), 2000);
-            })
-        );
+      new Setting(inviteContainer).addButton((btn) =>
+        btn
+          .setButtonText("Copy invite code")
+          .setCta()
+          .onClick(async () => {
+            await navigator.clipboard.writeText(inviteCode);
+            btn.setButtonText("Copied!");
+            setTimeout(() => btn.setButtonText("Copy invite code"), 2000);
+          })
+      );
     } else {
       const statusEl = inviteContainer.createEl("p", { text: "Loading…" });
       statusEl.style.color = "var(--text-muted)";
 
-      client.getIdentity().then((identity) => {
-        inviteContainer.empty();
-        const inviteCode = `${this.contextGraphId}\n${identity.peerId}`;
-        const codeEl = inviteContainer.createEl("code");
-        codeEl.style.cssText =
-          "display: block; padding: 10px; background: var(--background-secondary);" +
-          " border-radius: 6px; word-break: break-all; margin: 8px 0; font-size: 0.82em; white-space: pre-wrap;";
-        codeEl.setText(inviteCode);
-        new Setting(inviteContainer)
-          .addButton((btn) =>
+      client
+        .getIdentity()
+        .then((identity) => {
+          inviteContainer.empty();
+          const inviteCode = `${this.contextGraphId}\n${identity.peerId}`;
+          const codeEl = inviteContainer.createEl("code");
+          codeEl.style.cssText =
+            "display: block; padding: 10px; background: var(--background-secondary);" +
+            " border-radius: 6px; word-break: break-all; margin: 8px 0; font-size: 0.82em; white-space: pre-wrap;";
+          codeEl.setText(inviteCode);
+          new Setting(inviteContainer).addButton((btn) =>
             btn
               .setButtonText("Copy invite code")
               .setCta()
@@ -76,10 +78,11 @@ export class ManageMembersModal extends Modal {
                 setTimeout(() => btn.setButtonText("Copy invite code"), 2000);
               })
           );
-      }).catch(() => {
-        statusEl.setText("Could not load invite code.");
-        statusEl.style.color = "var(--color-red)";
-      });
+        })
+        .catch(() => {
+          statusEl.setText("Could not load invite code.");
+          statusEl.style.color = "var(--color-red)";
+        });
     }
 
     // Fetch data in parallel
@@ -110,24 +113,22 @@ export class ManageMembersModal extends Modal {
         const addr: string = req.agentAddress ?? req.delegation?.agentAddress ?? "(unknown)";
         const label = req.agentName ? `${req.agentName} (${addr})` : addr;
 
-        new Setting(contentEl)
-          .setName(label)
-          .addButton((btn) =>
-            btn
-              .setButtonText("Approve")
-              .setCta()
-              .onClick(async () => {
-                btn.setButtonText("Approving…").setDisabled(true);
-                try {
-                  await client.approveJoinRequest(this.contextGraphId, addr);
-                  new Notice(`Approved ${label}`);
-                  this.render();
-                } catch (err) {
-                  new Notice(`Approve failed: ${errorMessage(err)}`, 8000);
-                  btn.setButtonText("Approve").setDisabled(false);
-                }
-              })
-          );
+        new Setting(contentEl).setName(label).addButton((btn) =>
+          btn
+            .setButtonText("Approve")
+            .setCta()
+            .onClick(async () => {
+              btn.setButtonText("Approving…").setDisabled(true);
+              try {
+                await client.approveJoinRequest(this.contextGraphId, addr);
+                new Notice(`Approved ${label}`);
+                this.render();
+              } catch (err) {
+                new Notice(`Approve failed: ${errorMessage(err)}`, 8000);
+                btn.setButtonText("Approve").setDisabled(false);
+              }
+            })
+        );
       }
     }
 
@@ -138,24 +139,22 @@ export class ManageMembersModal extends Modal {
       contentEl.createEl("p", { text: "No members yet." }).style.color = "var(--text-muted)";
     } else {
       for (const addr of participants) {
-        new Setting(contentEl)
-          .setName(addr)
-          .addButton((btn) =>
-            btn
-              .setButtonText("Remove")
-              .setWarning()
-              .onClick(async () => {
-                btn.setButtonText("Removing…").setDisabled(true);
-                try {
-                  await client.removeParticipant(this.contextGraphId, addr);
-                  new Notice(`Removed ${addr}`);
-                  this.render();
-                } catch (err) {
-                  new Notice(`Remove failed: ${errorMessage(err)}`, 8000);
-                  btn.setButtonText("Remove").setDisabled(false);
-                }
-              })
-          );
+        new Setting(contentEl).setName(addr).addButton((btn) =>
+          btn
+            .setButtonText("Remove")
+            .setWarning()
+            .onClick(async () => {
+              btn.setButtonText("Removing…").setDisabled(true);
+              try {
+                await client.removeParticipant(this.contextGraphId, addr);
+                new Notice(`Removed ${addr}`);
+                this.render();
+              } catch (err) {
+                new Notice(`Remove failed: ${errorMessage(err)}`, 8000);
+                btn.setButtonText("Remove").setDisabled(false);
+              }
+            })
+        );
       }
     }
 

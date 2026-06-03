@@ -55,7 +55,12 @@ export class DkgClient {
     return this.json("POST", `/api/context-graph/${encodeURIComponent(contextGraphId)}/sign-join`);
   }
 
-  async requestJoin(contextGraphId: string, delegation: unknown, agentName: string, curatorPeerId: string): Promise<any> {
+  async requestJoin(
+    contextGraphId: string,
+    delegation: unknown,
+    agentName: string,
+    curatorPeerId: string
+  ): Promise<any> {
     return this.json("POST", `/api/context-graph/${encodeURIComponent(contextGraphId)}/request-join`, {
       delegation,
       agentName,
@@ -75,11 +80,15 @@ export class DkgClient {
   }
 
   async addParticipant(contextGraphId: string, agentAddress: string): Promise<unknown> {
-    return this.json("POST", `/api/context-graph/${encodeURIComponent(contextGraphId)}/add-participant`, { agentAddress });
+    return this.json("POST", `/api/context-graph/${encodeURIComponent(contextGraphId)}/add-participant`, {
+      agentAddress,
+    });
   }
 
   async removeParticipant(contextGraphId: string, agentAddress: string): Promise<unknown> {
-    return this.json("POST", `/api/context-graph/${encodeURIComponent(contextGraphId)}/remove-participant`, { agentAddress });
+    return this.json("POST", `/api/context-graph/${encodeURIComponent(contextGraphId)}/remove-participant`, {
+      agentAddress,
+    });
   }
 
   async listJoinRequests(contextGraphId: string): Promise<any[]> {

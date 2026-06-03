@@ -49,9 +49,7 @@ export function resolveRouting(
   let warning: string | undefined;
 
   if (sharedTo) {
-    const match = (opts.subscribedContextGraphs ?? []).find(
-      (c) => c.id === sharedTo || c.name === sharedTo
-    );
+    const match = (opts.subscribedContextGraphs ?? []).find((c) => c.id === sharedTo || c.name === sharedTo);
     if (match) {
       contextGraphId = match.id;
       // Sharing into a project implies promotion unless explicitly opted out.
@@ -71,9 +69,7 @@ export async function syncMarkdownFile(
   opts: SyncOptions
 ): Promise<SyncResult> {
   const content = await app.vault.read(file);
-  const frontmatter = app.metadataCache.getFileCache(file)?.frontmatter as
-    | Record<string, unknown>
-    | undefined;
+  const frontmatter = app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
   const { contextGraphId, promote, warning } = resolveRouting(frontmatter, opts);
 
   const assertionName = await makeAssertionName(opts.vaultId, file.path);
