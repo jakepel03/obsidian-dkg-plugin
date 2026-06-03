@@ -1,10 +1,13 @@
 import { Notice, Plugin, TFile, requestUrl } from "obsidian";
 import { DkgClient } from "./dkgClient";
 import { makeVaultId, slugifyContextGraphId } from "./identity";
-import { syncAllMarkdownFiles, syncMarkdownFile, shouldSkipPath } from "./noteSync";
+import { syncAllMarkdownFiles, syncMarkdownFile, shouldSkipPath, type SyncOptions } from "./noteSync";
 import { OriginTrailSettingTab } from "./settings";
 import { DEFAULT_SETTINGS, type OriginTrailSettings } from "./types";
 import { SetupWizardModal } from "./wizard";
+import { CreateProjectModal } from "./createProjectModal";
+import { JoinProjectModal } from "./joinProjectModal";
+import { ShareNoteModal } from "./shareNoteModal";
 import { errorMessage } from "./utils";
 
 export default class OriginTrailSharedMemoryPlugin extends Plugin {
@@ -14,6 +17,7 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
   private activeSyncs = 0;
   private hadSyncError = false;
   private savedStatusTimer: number | null = null;
+  private cachedAgentAddress?: string;
 
   async onload() {
     await this.loadSettings();
@@ -47,6 +51,41 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
       },
     });
 
+    this.addCommand({
+      id: "create-shared-dkg-project",
+      name: "Create shared DKG project",
+      callback: () => new CreateProjectModal(this, () => this.updateStatusBar()).open(),
+    });
+
+    this.addCommand({
+      id: "join-shared-dkg-project",
+      name: "Join shared DKG project",
+      callback: () => new JoinProjectModal(this, () => this.updateStatusBar()).open(),
+    });
+
+    this.addCommand({
+      id: "share-current-note-to-project",
+      name: "Share current note to a project",
+      checkCallback: (checking) => {
+        const file = this.app.workspace.getActiveFile();
+        if (!file || file.extension !== "md") return false;
+        if (this.settings.subscribedContextGraphs.length === 0) return false;
+        if (!checking) new ShareNoteModal(this, file).open();
+        return true;
+      },
+    });
+
+    this.addCommand({
+      id: "stop-sharing-current-note",
+      name: "Stop sharing current note",
+      checkCallback: (checking) => {
+        const file = this.app.workspace.getActiveFile();
+        if (!file || file.extension !== "md") return false;
+        if (!checking) this.unshareNote(file);
+        return true;
+      },
+    });
+
     this.registerEvent(
       this.app.vault.on("modify", (file) => {
         if (file instanceof TFile) this.scheduleAutoSync(file);
@@ -76,6 +115,28 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
 
   client(): DkgClient {
     return new DkgClient(this.settings.dkgNodeUrl, this.settings.authToken, requestUrl);
+  }
+
+  private syncOptions(): SyncOptions {
+    return {
+      primaryContextGraphId: this.settings.defaultContextGraphId,
+      vaultId: this.settings.vaultId,
+      autoPromote: this.settings.autoPromote,
+      subscribedContextGraphs: this.settings.subscribedContextGraphs,
+      agentAddress: this.cachedAgentAddress,
+    };
+  }
+
+  /** Fetch and cache this node's agent address once; used to build entity URIs for link enrichment. */
+  private async ensureAgentAddress(): Promise<void> {
+    if (this.cachedAgentAddress) return;
+    try {
+      const identity = await this.client().getIdentity();
+      this.cachedAgentAddress = identity?.agentAddress;
+    } catch (error) {
+      // Best-effort: without it, link/name enrichment is skipped but sync still works.
+      console.warn("[DKG] could not resolve agent address; link enrichment disabled:", error);
+    }
   }
 
   updateStatusBar() {
@@ -132,12 +193,11 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     this.updateStatusBar();
 
     notify(`Syncing Markdown notes to DKG Working Memory...`);
+    await this.ensureAgentAddress();
     const results = await syncAllMarkdownFiles(
       this.app,
       client,
-      this.settings.defaultContextGraphId,
-      this.settings.vaultId,
-      this.settings.autoPromote,
+      this.syncOptions(),
       opts?.onProgress ??
         ((done, total, file) => {
           if (done === 0 || done % 5 === 0) new Notice(`DKG sync ${done + 1}/${total}: ${file.path}`, 2500);
@@ -165,14 +225,9 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     this.activeSyncs++;
     this.setStatusSyncing();
     try {
-      const result = await syncMarkdownFile(
-        this.app,
-        this.client(),
-        this.settings.defaultContextGraphId,
-        this.settings.vaultId,
-        file,
-        this.settings.autoPromote
-      );
+      await this.ensureAgentAddress();
+      const result = await syncMarkdownFile(this.app, this.client(), file, this.syncOptions());
+      if (result.warning) new Notice(`DKG: ${result.warning}`, 8000);
       if (!silent) new Notice(`DKG ${result.status}: ${file.path}`);
     } catch (error) {
       this.hadSyncError = true;
@@ -185,6 +240,18 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
         else this.setStatusSaved();
       }
     }
+  }
+
+  async unshareNote(file: TFile) {
+    await this.app.fileManager.processFrontMatter(file, (fm) => {
+      fm.shared = false;
+      delete fm.shared_to;
+    });
+    new Notice(
+      `"${file.basename}" will no longer be promoted on sync. Note: any copy already shared to a project stays there until discarded.`,
+      8000
+    );
+    await this.syncFile(file);
   }
 
   private scheduleAutoSync(file: TFile) {

@@ -28,6 +28,16 @@ export async function makeAssertionName(vaultId: string, filePath: string): Prom
   return `obsidian-note-${hash.slice(0, 16)}`;
 }
 
+/**
+ * The canonical DKG entity URI for a note's assertion, matching how the daemon
+ * names imported assertions: `did:dkg:context-graph:{cg}/assertion/{agentAddress}/{assertionName}`.
+ * Deterministic from data the plugin already holds, so it can author edges
+ * to/from any note without querying the node.
+ */
+export function makeAssertionUri(contextGraphId: string, agentAddress: string, assertionName: string): string {
+  return `did:dkg:context-graph:${contextGraphId}/assertion/${agentAddress}/${assertionName}`;
+}
+
 export function makeVaultId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();

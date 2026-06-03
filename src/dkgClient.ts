@@ -15,6 +15,10 @@ export class DkgClient {
     return this.json("GET", "/api/agent/identity");
   }
 
+  async getIdentity(): Promise<{ agentAddress: string; peerId: string; name: string; agentDid: string }> {
+    return this.json("GET", "/api/agent/identity") as any;
+  }
+
   async listContextGraphs(): Promise<ContextGraphSummary[]> {
     const data = await this.json("GET", "/api/context-graph/list");
     const raw = Array.isArray(data) ? data : ((data as any).contextGraphs ?? (data as any).graphs ?? []);
@@ -37,8 +41,67 @@ export class DkgClient {
     });
   }
 
+  async createCuratedContextGraph(id: string, name: string): Promise<unknown> {
+    return this.json("POST", "/api/context-graph/create", {
+      id,
+      name,
+      description: `Obsidian shared project: ${name}`,
+      publishPolicy: 0,
+      accessPolicy: 1,
+    });
+  }
+
+  async signJoinRequest(contextGraphId: string): Promise<any> {
+    return this.json("POST", `/api/context-graph/${encodeURIComponent(contextGraphId)}/sign-join`);
+  }
+
+  async requestJoin(
+    contextGraphId: string,
+    delegation: unknown,
+    agentName: string,
+    curatorPeerId: string
+  ): Promise<any> {
+    return this.json("POST", `/api/context-graph/${encodeURIComponent(contextGraphId)}/request-join`, {
+      delegation,
+      agentName,
+      curatorPeerId,
+    });
+  }
+
+  async subscribeToContextGraph(contextGraphId: string): Promise<any> {
+    return this.json("POST", "/api/context-graph/subscribe", {
+      contextGraphId,
+      includeSharedMemory: true,
+    });
+  }
+
+  async listParticipants(contextGraphId: string): Promise<{ allowedAgents: string[] }> {
+    return this.json("GET", `/api/context-graph/${encodeURIComponent(contextGraphId)}/participants`) as any;
+  }
+
+  async addParticipant(contextGraphId: string, agentAddress: string): Promise<unknown> {
+    return this.json("POST", `/api/context-graph/${encodeURIComponent(contextGraphId)}/add-participant`, {
+      agentAddress,
+    });
+  }
+
+  async removeParticipant(contextGraphId: string, agentAddress: string): Promise<unknown> {
+    return this.json("POST", `/api/context-graph/${encodeURIComponent(contextGraphId)}/remove-participant`, {
+      agentAddress,
+    });
+  }
+
+  async listJoinRequests(contextGraphId: string): Promise<any[]> {
+    const data: any = await this.json("GET", `/api/context-graph/${encodeURIComponent(contextGraphId)}/join-requests`);
+    return Array.isArray(data) ? data : (data?.requests ?? []);
+  }
+
+  async approveJoinRequest(contextGraphId: string, agentAddress: string): Promise<unknown> {
+    return this.json("POST", `/api/context-graph/${encodeURIComponent(contextGraphId)}/approve-join`, { agentAddress });
+  }
+
   async ensureContextGraph(id: string, name: string): Promise<ContextGraphSummary> {
-    const before = await this.listContextGraphs().catch(() => []);
+    const before = await this.listContextGraphs().catch((): ContextGraphSummary[] => []);
     const existing = before.find((g) => g.id === id || g.name === name);
     if (existing) return existing;
 
@@ -49,7 +112,7 @@ export class DkgClient {
       if (!/409|conflict|already/i.test(message)) throw error;
     }
 
-    const after = await this.listContextGraphs().catch(() => []);
+    const after = await this.listContextGraphs().catch((): ContextGraphSummary[] => []);
     return after.find((g) => g.id === id || g.name === name) ?? { id, name };
   }
 
@@ -92,6 +155,27 @@ export class DkgClient {
     return this.json("POST", `/api/assertion/${encodeURIComponent(assertionName)}/promote`, {
       contextGraphId,
       entities: "all",
+    });
+  }
+
+  /**
+   * Append plugin-derived triples (resolved wikilinks, filename title) into an
+   * already-imported assertion's WM graph, with provenance. Targets the source
+   * import assertion identified by `assertionUri`; triples promote/demote with
+   * the note.
+   */
+  async enrichAssertion(
+    contextGraphId: string,
+    assertionName: string,
+    assertionUri: string,
+    semanticQuads: Array<{ subject: string; predicate: string; object: string }>
+  ): Promise<unknown> {
+    return this.json("POST", "/api/assertion/semantic-enrichment/write", {
+      contextGraphId,
+      assertionName,
+      assertionUri,
+      semanticQuads,
+      generationMethod: "obsidian-link-resolver",
     });
   }
 
