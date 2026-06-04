@@ -4,7 +4,7 @@ import type { SubscribedContextGraph } from "./types";
 
 /**
  * Lets the user pick which shared project the current note should be published
- * into. On selection it writes `shared_to`/`shared` frontmatter and triggers a
+ * into. On selection it writes a `shared_to` frontmatter key and triggers a
  * sync, which routes the note's assertion into that project's context graph.
  */
 export class ShareNoteModal extends FuzzySuggestModal<SubscribedContextGraph> {
@@ -27,7 +27,7 @@ export class ShareNoteModal extends FuzzySuggestModal<SubscribedContextGraph> {
   async onChooseItem(cg: SubscribedContextGraph): Promise<void> {
     await this.app.fileManager.processFrontMatter(this.file, (fm) => {
       fm.shared_to = cg.id;
-      fm.shared = true;
+      delete fm.shared;
     });
     new Notice(`Publishing "${this.file.basename}" to ${cg.name || cg.id}…`);
     await this.plugin.syncFile(this.file);

@@ -1,7 +1,7 @@
 import { Notice, Plugin, TFile, requestUrl } from "obsidian";
 import { DkgClient } from "./dkgClient";
 import { makeVaultId, slugifyContextGraphId, makeAssertionName } from "./identity";
-import { syncAllMarkdownFiles, syncMarkdownFile, shouldSkipPath, type SyncOptions } from "./noteSync";
+import { syncAllMarkdownFiles, syncMarkdownFile, shouldSkipPath, resolveRouting, type SyncOptions } from "./noteSync";
 import { OriginTrailSettingTab } from "./settings";
 import { DEFAULT_SETTINGS, type OriginTrailSettings } from "./types";
 import { SetupWizardModal } from "./wizard";
@@ -46,13 +46,13 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
 
     this.addCommand({
       id: "create-project-from-current-vault-and-sync-notes",
-      name: "Power up current vault with OriginTrail DKG",
+      name: "Connect this vault to OriginTrail DKG",
       callback: () => new SetupWizardModal(this).open(),
     });
 
     this.addCommand({
       id: "sync-current-note-to-dkg-working-memory",
-      name: "Sync current note to DKG Working Memory",
+      name: "Sync current note to DKG",
       checkCallback: (checking) => {
         const file = this.app.workspace.getActiveFile();
         if (!file || file.extension !== "md") return false;
@@ -138,6 +138,9 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
 
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    // Legacy "promote everything" switch was replaced by explicit per-note /
+    // per-folder sharing; drop it so it stops being persisted.
+    delete (this.settings as unknown as Record<string, unknown>).autoPromote;
     if (!this.settings.vaultId) {
       this.settings.vaultId = makeVaultId();
       await this.saveSettings();
@@ -156,10 +159,20 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     return {
       primaryContextGraphId: this.settings.defaultContextGraphId,
       vaultId: this.settings.vaultId,
-      autoPromote: this.settings.autoPromote,
       subscribedContextGraphs: this.settings.subscribedContextGraphs,
+      folderDestinations: this.settings.folderDestinations,
       agentAddress: this.cachedAgentAddress,
     };
+  }
+
+  /** Where a note goes on sync: private, or shared to a project (and how). */
+  noteDestination(file: TFile): { shared: boolean; projectName?: string; viaFolderRule: boolean } {
+    const fm = this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
+    const { contextGraphId, promote } = resolveRouting(file.path, fm, this.syncOptions());
+    if (!promote) return { shared: false, viaFolderRule: false };
+    const match = this.settings.subscribedContextGraphs.find((c) => c.id === contextGraphId);
+    const explicit = typeof fm?.shared_to === "string" && fm.shared_to.trim().length > 0;
+    return { shared: true, projectName: match?.name || contextGraphId, viaFolderRule: !explicit };
   }
 
   /** Fetch and cache this node's agent address once; used to build entity URIs for link enrichment. */
@@ -177,9 +190,8 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
   updateStatusBar() {
     if (!this.statusBarEl) return;
     const project = this.settings.defaultContextGraphId || "unlinked";
-    const layer = this.settings.autoPromote ? "Shared Memory" : "Working Memory";
-    const sync = this.settings.autoSync ? "auto-sync on" : "auto-sync off";
-    this.statusBarEl.setText(`DKG: ${project} · ${layer} · ${sync}`);
+    const sync = this.settings.autoSync ? "synced" : "auto-sync off";
+    this.statusBarEl.setText(`DKG: ${project} · ${sync}`);
     this.refreshDashboard();
   }
 
@@ -249,7 +261,7 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     await this.saveSettings();
     this.updateStatusBar();
 
-    notify(`Syncing Markdown notes to DKG Working Memory...`);
+    notify(`Importing Markdown notes into your vault graph...`);
     await this.ensureAgentAddress();
     const results = await syncAllMarkdownFiles(
       this.app,
@@ -263,7 +275,7 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
 
     if (!opts?.onStatus) {
       new Notice(
-        `DKG Project linked: ${this.settings.defaultContextGraphId}. Synced ${results.length} notes to ${this.settings.autoPromote ? "Shared Memory" : "Working Memory"}.`,
+        `DKG Project linked: ${this.settings.defaultContextGraphId}. Synced ${results.length} notes privately to your vault graph.`,
         10000
       );
     }
@@ -273,7 +285,7 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
 
   async syncFile(file: TFile, silent = false) {
     if (!this.settings.defaultContextGraphId) {
-      new Notice('This vault is not powered up yet. Run "Power up current vault with OriginTrail DKG" first.');
+      new Notice('This vault is not connected to DKG yet. Run "Connect this vault to OriginTrail DKG" first.');
       return;
     }
     if (file.extension !== "md" || shouldSkipPath(file.path)) return;
@@ -301,11 +313,11 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
 
   async unshareNote(file: TFile) {
     await this.app.fileManager.processFrontMatter(file, (fm) => {
-      fm.shared = false;
       delete fm.shared_to;
+      delete fm.shared;
     });
     new Notice(
-      `"${file.basename}" will no longer be promoted on sync. Note: any copy already shared to a project stays there until discarded.`,
+      `"${file.basename}" is now private. Any copy already shared to a project stays there until discarded.`,
       8000
     );
     await this.syncFile(file);

@@ -7,16 +7,25 @@ export interface SubscribedContextGraph {
   curated?: boolean;
 }
 
+/** A folder whose notes are shared to a project by default (e.g. `Team/` → research-team). */
+export interface FolderDestination {
+  /** Vault folder prefix, with or without a trailing slash. */
+  folder: string;
+  /** Subscribed project (context graph) id this folder's notes are shared to. */
+  contextGraphId: string;
+}
+
 export interface OriginTrailSettings {
   dkgNodeUrl: string;
   authToken: string;
   defaultContextGraphId: string;
   autoSync: boolean;
-  autoPromote: boolean;
   syncDebounceMs: number;
   vaultId: string;
   hasSeenPowerUpPrompt: boolean;
   subscribedContextGraphs: SubscribedContextGraph[];
+  /** Folder → project rules; notes under a folder are shared there automatically. */
+  folderDestinations: FolderDestination[];
 }
 
 export const DEFAULT_SETTINGS: OriginTrailSettings = {
@@ -24,11 +33,11 @@ export const DEFAULT_SETTINGS: OriginTrailSettings = {
   authToken: "",
   defaultContextGraphId: "",
   autoSync: true,
-  autoPromote: false,
   syncDebounceMs: 1500,
   vaultId: "",
   hasSeenPowerUpPrompt: false,
   subscribedContextGraphs: [],
+  folderDestinations: [],
 };
 
 export type RequestTransport = (request: RequestUrlParam) => Promise<RequestUrlResponse>;

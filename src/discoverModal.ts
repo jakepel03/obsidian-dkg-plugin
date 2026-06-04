@@ -62,7 +62,7 @@ export class DiscoverModal extends Modal {
     if (options.length === 0) {
       contentEl
         .createEl("p", {
-          text: "No graphs to browse yet. Power up your vault, or join a shared project first.",
+          text: "No graphs to browse yet. Connect your vault, or join a shared project first.",
         })
         .style.setProperty("color", "var(--text-muted)");
       return;

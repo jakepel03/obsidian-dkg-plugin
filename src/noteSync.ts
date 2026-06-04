@@ -1,5 +1,5 @@
 import type { App, TFile } from "obsidian";
-import type { SubscribedContextGraph, SyncResult } from "./types";
+import type { FolderDestination, SubscribedContextGraph, SyncResult } from "./types";
 import type { DkgClient } from "./dkgClient";
 import { makeAssertionName, makeAssertionUri } from "./identity";
 
@@ -7,13 +7,13 @@ const SCHEMA_NAME = "http://schema.org/name";
 const SCHEMA_MENTIONS = "http://schema.org/mentions";
 
 export interface SyncOptions {
-  /** The vault's own context graph — where notes land unless routed elsewhere. */
+  /** The vault's own context graph — where private notes land. */
   primaryContextGraphId: string;
   vaultId: string;
-  /** Global default for whether a synced note is promoted to Shared Memory. */
-  autoPromote: boolean;
-  /** Projects this vault can route notes into via `shared_to:` frontmatter. */
+  /** Projects this vault can share notes into. */
   subscribedContextGraphs?: SubscribedContextGraph[];
+  /** Folder → project rules; a note shares to the first matching folder's project. */
+  folderDestinations?: FolderDestination[];
   /** This node's agent address, needed to build entity URIs for link enrichment. */
   agentAddress?: string;
 }
@@ -33,39 +33,61 @@ export function shouldSkipPath(path: string): boolean {
 }
 
 /**
- * Decide which context graph a note belongs to and whether to promote it,
- * based on the note's `shared_to:` / `shared:` frontmatter and the global
- * auto-promote default.
+ * Decide where a note belongs. The model is "private by default, shared on
+ * purpose": a note lives privately in your own vault graph unless it has an
+ * explicit destination.
  *
- * - `shared_to: <project>` routes the note into that subscribed project (and
- *   promotes it, since an un-promoted note is invisible to other subscribers).
- * - `shared: true|false` overrides the global auto-promote default per note.
- * - Neither present → primary CG, promotion follows the global default.
+ *  1. `shared_to: <project>` — share into that named subscribed project.
+ *  2. otherwise, the first matching folder rule (`folderDestinations`).
+ *  3. otherwise — private (primary graph, not promoted).
+ *
+ * "Shared" means promoted into the destination project's Shared Memory, which
+ * is what makes it visible to that project's other subscribers.
  */
 export function resolveRouting(
+  filePath: string,
   frontmatter: Record<string, unknown> | undefined,
   opts: SyncOptions
 ): { contextGraphId: string; promote: boolean; warning?: string } {
   const fm = frontmatter ?? {};
+  const subs = opts.subscribedContextGraphs ?? [];
   const sharedTo = typeof fm.shared_to === "string" ? fm.shared_to.trim() : "";
-  const sharedFlag = typeof fm.shared === "boolean" ? fm.shared : undefined;
 
-  let contextGraphId = opts.primaryContextGraphId;
-  let promote = sharedFlag ?? opts.autoPromote;
-  let warning: string | undefined;
-
+  // 1. Explicit per-note destination.
   if (sharedTo) {
-    const match = (opts.subscribedContextGraphs ?? []).find((c) => c.id === sharedTo || c.name === sharedTo);
-    if (match) {
-      contextGraphId = match.id;
-      // Sharing into a project implies promotion unless explicitly opted out.
-      promote = sharedFlag ?? true;
-    } else {
-      warning = `Unknown project "${sharedTo}" in shared_to — synced to the primary project instead.`;
-    }
+    const match = subs.find((c) => c.id === sharedTo || c.name === sharedTo);
+    if (match) return { contextGraphId: match.id, promote: true };
+    return {
+      contextGraphId: opts.primaryContextGraphId,
+      promote: false,
+      warning: `Unknown project "${sharedTo}" in shared_to — kept private in your vault instead.`,
+    };
   }
 
-  return { contextGraphId, promote, warning };
+  // 2. Folder default destination.
+  const folderDest = matchFolderDestination(filePath, opts.folderDestinations ?? [], subs);
+  if (folderDest) return { contextGraphId: folderDest, promote: true };
+
+  // 3. Private.
+  return { contextGraphId: opts.primaryContextGraphId, promote: false };
+}
+
+/** Longest matching folder prefix wins; resolves the rule's project to a real id. */
+function matchFolderDestination(
+  filePath: string,
+  rules: FolderDestination[],
+  subs: SubscribedContextGraph[]
+): string | undefined {
+  let best: { len: number; cg: string } | undefined;
+  for (const rule of rules) {
+    if (!rule.folder || !rule.contextGraphId) continue;
+    const prefix = rule.folder.endsWith("/") ? rule.folder : `${rule.folder}/`;
+    if (!filePath.startsWith(prefix)) continue;
+    const match = subs.find((c) => c.id === rule.contextGraphId || c.name === rule.contextGraphId);
+    const cg = match?.id ?? rule.contextGraphId;
+    if (!best || prefix.length > best.len) best = { len: prefix.length, cg };
+  }
+  return best?.cg;
 }
 
 export async function syncMarkdownFile(
@@ -76,7 +98,7 @@ export async function syncMarkdownFile(
 ): Promise<SyncResult> {
   const content = await app.vault.read(file);
   const frontmatter = app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
-  const { contextGraphId, promote, warning } = resolveRouting(frontmatter, opts);
+  const { contextGraphId, promote, warning } = resolveRouting(file.path, frontmatter, opts);
 
   const assertionName = await makeAssertionName(opts.vaultId, file.path);
   const imported: any = await client.importMarkdown(contextGraphId, assertionName, file.name, content);
