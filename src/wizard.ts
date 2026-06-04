@@ -59,7 +59,7 @@ export class SetupWizardModal extends Modal {
 
   private renderProgressIndicator() {
     const { contentEl } = this;
-    const steps = ["Connect", "Power up", "Done"];
+    const steps = ["Connect", "Import", "Done"];
     const wrapper = contentEl.createDiv();
     wrapper.style.cssText = "display: flex; gap: 8px; margin-bottom: 20px;";
 
@@ -172,9 +172,9 @@ export class SetupWizardModal extends Modal {
     const vaultName = this.plugin.app.vault.getName();
     const contextGraphId = slugifyContextGraphId(vaultName);
 
-    contentEl.createEl("h2", { text: "Power up this vault" });
+    contentEl.createEl("h2", { text: "Import your notes" });
     contentEl.createEl("p", {
-      text: "Power up creates a DKG Project linked to this vault and imports all Markdown notes into Working Memory. Shared Memory promotion stays off until you enable it in Settings.",
+      text: "This links a DKG project to your vault and imports all your Markdown notes into it. Everything stays private to your own node until you choose to share a note to a project.",
     });
 
     const infoBox = contentEl.createDiv();
@@ -187,7 +187,7 @@ export class SetupWizardModal extends Modal {
     const statusEl = contentEl.createEl("p", { text: "" });
     statusEl.style.cssText = "min-height: 1.4em; font-size: 0.9em; color: var(--text-muted);";
 
-    // Footer: [← Back] ........... [Power up vault]
+    // Footer: [← Back] ........... [Import notes]
     const footer = this.wizardFooter(contentEl);
     const backBtn = this.ghostButton(footer, "← Back");
     const powerBtn = new ButtonComponent(footer);
@@ -199,7 +199,7 @@ export class SetupWizardModal extends Modal {
     });
 
     powerBtn
-      .setButtonText("Power up vault")
+      .setButtonText("Import notes")
       .setCta()
       .onClick(async () => {
         powerBtn.setDisabled(true);
@@ -227,13 +227,13 @@ export class SetupWizardModal extends Modal {
     const { contentEl } = this;
     contentEl.createEl("h2", { text: "All done!" });
     contentEl.createEl("p", {
-      text: `Vault linked to DKG Project "${this.plugin.settings.defaultContextGraphId}". ${this.syncedCount} note${this.syncedCount === 1 ? "" : "s"} synced to Working Memory.`,
+      text: `Vault linked to DKG project "${this.plugin.settings.defaultContextGraphId}". ${this.syncedCount} note${this.syncedCount === 1 ? "" : "s"} imported privately to your vault graph.`,
     });
     contentEl.createEl("p", {
-      text: "Auto-sync is now on. Shared Memory promotion is off by default — enable it in Settings when ready.",
+      text: "Auto-sync is now on, so your notes stay in sync with your DKG node. Everything is private until you share a note to a project.",
     });
     contentEl.createEl("p", {
-      text: "You can change these settings at any time from Settings → OriginTrail Shared Memory.",
+      text: "You can change these settings at any time from Settings → OriginTrail DKG.",
     });
 
     const footer = this.wizardFooter(contentEl);

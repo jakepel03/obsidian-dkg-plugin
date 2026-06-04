@@ -1,4 +1,4 @@
-import { App, ButtonComponent, PluginSettingTab, Setting } from "obsidian";
+import { App, ButtonComponent, Notice, PluginSettingTab, Setting } from "obsidian";
 import type OriginTrailSharedMemoryPlugin from "./main";
 import { SetupWizardModal } from "./wizard";
 import { CreateProjectModal } from "./createProjectModal";
@@ -127,6 +127,61 @@ export class OriginTrailSettingTab extends PluginSettingTab {
           .onClick(() => new JoinProjectModal(this.plugin, () => this.display()).open())
       );
 
+    // ── Sharing ────────────────────────────────────────────────────────────────
+    containerEl.createEl("h3", { text: "Sharing" });
+
+    const sharingDesc = containerEl.createEl("p", {
+      text: "Notes are private by default. Share a single note to a project from the dashboard, or add a folder rule below to share everything inside a folder automatically.",
+    });
+    sharingDesc.style.cssText = "color: var(--text-muted); font-size: 0.9em; margin: 4px 0 12px;";
+
+    if (subscribed.length === 0) {
+      const note = containerEl.createEl("p", { text: "Create or join a project first to set up folder sharing." });
+      note.style.cssText = "color: var(--text-muted); font-size: 0.9em; margin: 4px 0 12px;";
+    } else {
+      const rules = this.plugin.settings.folderDestinations;
+      for (const rule of rules) {
+        const projName = subscribed.find((c) => c.id === rule.contextGraphId)?.name || rule.contextGraphId;
+        new Setting(containerEl)
+          .setName(rule.folder)
+          .setDesc(`Shared to ${projName}`)
+          .addButton((btn) =>
+            btn
+              .setButtonText("Remove")
+              .setWarning()
+              .onClick(async () => {
+                this.plugin.settings.folderDestinations = rules.filter((r) => r !== rule);
+                await this.plugin.saveSettings();
+                this.display();
+              })
+          );
+      }
+
+      let newFolder = "";
+      let newProject = subscribed[0].id;
+      const addRule = new Setting(containerEl).setName("Add folder rule").setDesc("Folder → project");
+      addRule.addText((t) => t.setPlaceholder("Team/").onChange((v) => (newFolder = v.trim())));
+      addRule.addDropdown((dd) => {
+        for (const c of subscribed) dd.addOption(c.id, c.name || c.id);
+        dd.setValue(newProject);
+        dd.onChange((v) => (newProject = v));
+      });
+      addRule.addButton((btn) =>
+        btn
+          .setButtonText("Add")
+          .setCta()
+          .onClick(async () => {
+            if (!newFolder) {
+              new Notice("Enter a folder path, e.g. Team/");
+              return;
+            }
+            this.plugin.settings.folderDestinations.push({ folder: newFolder, contextGraphId: newProject });
+            await this.plugin.saveSettings();
+            this.display();
+          })
+      );
+    }
+
     // ── Connection ───────────────────────────────────────────────────────────
     containerEl.createEl("h3", { text: "Connection" });
 
@@ -166,12 +221,23 @@ export class OriginTrailSettingTab extends PluginSettingTab {
       });
     });
 
-    // ── Sync behaviour ───────────────────────────────────────────────────────
-    containerEl.createEl("h3", { text: "Sync behaviour" });
+    // ── Advanced ─────────────────────────────────────────────────────────────
+    const details = containerEl.createEl("details");
+    details.style.cssText = "margin-top: 28px;";
+    const summary = details.createEl("summary");
+    summary.style.cssText =
+      "cursor: pointer; color: var(--text-muted); font-size: 0.88em; user-select: none; list-style: none;";
+    summary.setText("▸ Advanced");
+    details.addEventListener("toggle", () => {
+      summary.setText(details.open ? "▾ Advanced" : "▸ Advanced");
+    });
 
-    new Setting(containerEl)
+    const advancedEl = details.createDiv();
+    advancedEl.style.cssText = "margin-top: 8px;";
+
+    new Setting(advancedEl)
       .setName("Auto-sync saved notes")
-      .setDesc("Imports saved Markdown notes into DKG Working Memory for the linked DKG Project.")
+      .setDesc("On by default — your vault is kept in sync with your DKG node. Turn off to pause all syncing.")
       .addToggle((toggle) =>
         toggle.setValue(this.plugin.settings.autoSync).onChange(async (value) => {
           this.plugin.settings.autoSync = value;
@@ -180,20 +246,7 @@ export class OriginTrailSettingTab extends PluginSettingTab {
         })
       );
 
-    new Setting(containerEl)
-      .setName("Promote to Shared Memory")
-      .setDesc(
-        "When enabled, synced notes are promoted from Working Memory to Shared Memory. Leave off during early testing."
-      )
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.autoPromote).onChange(async (value) => {
-          this.plugin.settings.autoPromote = value;
-          await this.plugin.saveSettings();
-          this.plugin.updateStatusBar();
-        })
-      );
-
-    new Setting(containerEl)
+    new Setting(advancedEl)
       .setName("Debounce (ms)")
       .setDesc("Milliseconds to wait after a note is modified before syncing.")
       .addText((text) =>
@@ -208,20 +261,6 @@ export class OriginTrailSettingTab extends PluginSettingTab {
             }
           })
       );
-
-    // ── Advanced ─────────────────────────────────────────────────────────────
-    const details = containerEl.createEl("details");
-    details.style.cssText = "margin-top: 28px;";
-    const summary = details.createEl("summary");
-    summary.style.cssText =
-      "cursor: pointer; color: var(--text-muted); font-size: 0.88em; user-select: none; list-style: none;";
-    summary.setText("▸ Advanced");
-    details.addEventListener("toggle", () => {
-      summary.setText(details.open ? "▾ Advanced" : "▸ Advanced");
-    });
-
-    const advancedEl = details.createDiv();
-    advancedEl.style.cssText = "margin-top: 8px;";
 
     new Setting(advancedEl)
       .setName("Linked DKG Project")

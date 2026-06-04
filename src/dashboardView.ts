@@ -117,37 +117,18 @@ export class DkgDashboardView extends ItemView {
     const s = this.plugin.settings;
     const card = root.createDiv("dkg-card");
     kv(card, "Node", s.dkgNodeUrl || "(not set)", true);
-    kv(card, "Project", s.defaultContextGraphId || "Not linked");
-
-    const chips = card.createDiv("dkg-chips");
-    this.chip(chips, s.autoPromote ? "Shared Memory" : "Working Memory", s.autoPromote, async () => {
-      this.plugin.settings.autoPromote = !this.plugin.settings.autoPromote;
-      await this.plugin.saveSettings();
-      this.plugin.updateStatusBar();
-    });
-    this.chip(chips, s.autoSync ? "Auto-sync on" : "Auto-sync off", s.autoSync, async () => {
-      this.plugin.settings.autoSync = !this.plugin.settings.autoSync;
-      await this.plugin.saveSettings();
-      this.plugin.updateStatusBar();
-    });
+    kv(card, "Vault graph", s.defaultContextGraphId || "Not linked");
 
     if (!s.defaultContextGraphId) {
       const a = card.createDiv("dkg-actions");
       btn(a, {
         icon: "zap",
-        text: "Power up vault",
+        text: "Connect vault",
         cta: true,
         full: true,
         onClick: () => new SetupWizardModal(this.plugin, () => this.render()).open(),
       });
     }
-  }
-
-  private chip(parent: HTMLElement, label: string, active: boolean, onClick: () => void): void {
-    const c = parent.createDiv("dkg-chip" + (active ? " is-active" : ""));
-    c.createSpan("dkg-dot-sm");
-    c.createSpan({ text: label });
-    c.onclick = onClick;
   }
 
   // ── This note ───────────────────────────────────────────────────────────────
@@ -163,25 +144,35 @@ export class DkgDashboardView extends ItemView {
       return;
     }
     if (!this.plugin.settings.defaultContextGraphId) {
-      card.createEl("p", { cls: "dkg-empty", text: "Power up the vault first." });
+      card.createEl("p", { cls: "dkg-empty", text: "Connect your vault first." });
       return;
     }
 
     card.createDiv({ cls: "dkg-note-title", text: file.basename });
 
+    const dest = this.plugin.noteDestination(file);
+    kv(
+      card,
+      "Status",
+      dest.shared ? `Shared to ${dest.projectName}${dest.viaFolderRule ? " (folder rule)" : ""}` : "Private"
+    );
+
     const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
-    const sharedTo = typeof fm?.shared_to === "string" ? fm.shared_to : "";
-    if (sharedTo) kv(card, "Shared to", sharedTo);
+    const explicitShare = typeof fm?.shared_to === "string" && fm.shared_to.trim().length > 0;
 
     const actions = card.createDiv("dkg-actions");
     btn(actions, { icon: "refresh-cw", text: "Sync now", cta: true, onClick: () => void this.plugin.syncFile(file) });
     if (this.plugin.settings.subscribedContextGraphs.length) {
-      btn(actions, { icon: "share-2", text: "Share…", onClick: () => new ShareNoteModal(this.plugin, file).open() });
+      btn(actions, {
+        icon: "share-2",
+        text: dest.shared ? "Change…" : "Share…",
+        onClick: () => new ShareNoteModal(this.plugin, file).open(),
+      });
     }
-    if (sharedTo) {
+    if (explicitShare) {
       btn(actions, {
         icon: "minus-circle",
-        text: "Stop sharing",
+        text: "Make private",
         ghost: true,
         onClick: () => void this.plugin.unshareNote(file).then(() => this.renderThisNote(el)),
       });
