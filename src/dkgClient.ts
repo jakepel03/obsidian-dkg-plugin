@@ -179,6 +179,44 @@ export class DkgClient {
     });
   }
 
+  /** Run a read-only SPARQL SELECT and return rows as flat string maps (values unwrapped). */
+  async querySparql(sparql: string): Promise<Array<Record<string, string>>> {
+    const data: any = await this.json("POST", "/api/query", { sparql });
+    const bindings: any[] = data?.result?.bindings ?? data?.bindings ?? [];
+    return bindings.map((row: any) => {
+      const out: Record<string, string> = {};
+      for (const key of Object.keys(row)) {
+        const v = row[key];
+        out[key] = typeof v === "string" ? v : (v?.value ?? "");
+      }
+      return out;
+    });
+  }
+
+  /**
+   * Read the original Markdown bytes of an imported assertion. Returns the
+   * markdown string, or null if the bytes are not available on this node
+   * (e.g. a peer's note whose source bytes were not replicated — only the
+   * triples were). Callers fall back to reconstructing from the graph.
+   */
+  async readImportedMarkdown(
+    contextGraphId: string,
+    assertionUri: string,
+    assertionName: string
+  ): Promise<string | null> {
+    try {
+      const data: any = await this.json("POST", "/api/assertion/import-artifact/read-markdown", {
+        contextGraphId,
+        assertionUri,
+        assertionName,
+      });
+      return typeof data?.markdown === "string" ? data.markdown : null;
+    } catch {
+      // 404 = source bytes not replicated locally (cross-node); reconstruct instead.
+      return null;
+    }
+  }
+
   private async json(method: string, path: string, body?: unknown): Promise<unknown> {
     return this.rawJson(method, path, body === undefined ? undefined : JSON.stringify(body), {
       "Content-Type": "application/json",
