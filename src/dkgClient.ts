@@ -159,6 +159,18 @@ export class DkgClient {
   }
 
   /**
+   * Discard an assertion from a context graph (Working Memory). Used to clean up
+   * orphans when a note is renamed or deleted. The daemon returns 400 with a
+   * "not found" message if the assertion never existed — callers treat that as
+   * a no-op rather than an error.
+   */
+  async discardAssertion(contextGraphId: string, assertionName: string): Promise<unknown> {
+    return this.json("POST", `/api/assertion/${encodeURIComponent(assertionName)}/discard`, {
+      contextGraphId,
+    });
+  }
+
+  /**
    * Append plugin-derived triples (resolved wikilinks, filename title) into an
    * already-imported assertion's WM graph, with provenance. Targets the source
    * import assertion identified by `assertionUri`; triples promote/demote with

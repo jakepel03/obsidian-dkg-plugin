@@ -1,6 +1,6 @@
 import { Notice, Plugin, TFile, requestUrl } from "obsidian";
 import { DkgClient } from "./dkgClient";
-import { makeVaultId, slugifyContextGraphId } from "./identity";
+import { makeVaultId, slugifyContextGraphId, makeAssertionName } from "./identity";
 import { syncAllMarkdownFiles, syncMarkdownFile, shouldSkipPath, type SyncOptions } from "./noteSync";
 import { OriginTrailSettingTab } from "./settings";
 import { DEFAULT_SETTINGS, type OriginTrailSettings } from "./types";
@@ -102,13 +102,32 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
       },
     });
 
-    this.registerEvent(
-      this.app.vault.on("modify", (file) => {
-        if (file instanceof TFile) this.scheduleAutoSync(file);
-      })
-    );
-
-    this.app.workspace.onLayoutReady(() => this.maybeShowPowerUpPrompt());
+    // Register vault listeners only after layout is ready: Obsidian fires a
+    // "create" event for every existing file during initial load, and handling
+    // those would trigger a full re-sync on every startup.
+    this.app.workspace.onLayoutReady(() => {
+      this.registerEvent(
+        this.app.vault.on("modify", (file) => {
+          if (file instanceof TFile) this.scheduleAutoSync(file);
+        })
+      );
+      this.registerEvent(
+        this.app.vault.on("create", (file) => {
+          if (file instanceof TFile) this.scheduleAutoSync(file);
+        })
+      );
+      this.registerEvent(
+        this.app.vault.on("rename", (file, oldPath) => {
+          if (file instanceof TFile) void this.handleRename(file, oldPath);
+        })
+      );
+      this.registerEvent(
+        this.app.vault.on("delete", (file) => {
+          if (file instanceof TFile) void this.handleDelete(file);
+        })
+      );
+      this.maybeShowPowerUpPrompt();
+    });
   }
 
   onunload() {
@@ -304,6 +323,57 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
       this.syncFile(file, true);
     }, this.settings.syncDebounceMs);
     this.pendingSyncTimers.set(file.path, timer);
+  }
+
+  /** Rename: drop the orphaned assertion at the old path, then sync the new one. */
+  private async handleRename(file: TFile, oldPath: string) {
+    if (!this.settings.defaultContextGraphId) return;
+    this.cancelPendingSync(oldPath);
+
+    // The old path's stable assertion name no longer maps to any file — discard
+    // it so the rename doesn't leave an orphan. (No-op if it was never synced.)
+    if (oldPath.toLowerCase().endsWith(".md") && !shouldSkipPath(oldPath)) {
+      await this.discardAssertionForPath(oldPath);
+    }
+
+    // Re-sync under the new path unless it moved into an excluded area.
+    if (this.settings.autoSync && file.extension === "md" && !shouldSkipPath(file.path)) {
+      this.scheduleAutoSync(file);
+    }
+  }
+
+  /** Delete: discard the assertion so the local DKG reflects the vault. */
+  private async handleDelete(file: TFile) {
+    if (!this.settings.defaultContextGraphId) return;
+    this.cancelPendingSync(file.path);
+
+    if (file.extension === "md" && !shouldSkipPath(file.path)) {
+      await this.discardAssertionForPath(file.path);
+    }
+  }
+
+  private cancelPendingSync(path: string) {
+    const pending = this.pendingSyncTimers.get(path);
+    if (pending) {
+      window.clearTimeout(pending);
+      this.pendingSyncTimers.delete(path);
+    }
+  }
+
+  /**
+   * Discard the assertion mapped to a vault path from the primary context graph.
+   * Best-effort: a missing assertion (never synced) or a network blip logs a
+   * warning but never blocks the local file operation. Notes shared into a
+   * separate project keep their promoted copy there until discarded — same
+   * limitation as "Stop sharing".
+   */
+  private async discardAssertionForPath(path: string) {
+    try {
+      const assertionName = await makeAssertionName(this.settings.vaultId, path);
+      await this.client().discardAssertion(this.settings.defaultContextGraphId, assertionName);
+    } catch (error) {
+      console.warn(`[DKG] could not discard assertion for ${path}:`, error);
+    }
   }
 
   private maybeShowPowerUpPrompt() {
