@@ -23,7 +23,13 @@ export function isMarkdownFile(file: TFile): boolean {
 }
 
 export function shouldSkipPath(path: string): boolean {
-  return path.startsWith(".obsidian/") || path.startsWith(".trash/") || path.includes("/.trash/");
+  return (
+    path.startsWith(".obsidian/") ||
+    path.startsWith(".trash/") ||
+    path.includes("/.trash/") ||
+    // Forked/discovered notes are a read-only local cache, not authored content.
+    path.startsWith("DKG Discover/")
+  );
 }
 
 /**

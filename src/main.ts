@@ -8,6 +8,8 @@ import { SetupWizardModal } from "./wizard";
 import { CreateProjectModal } from "./createProjectModal";
 import { JoinProjectModal } from "./joinProjectModal";
 import { ShareNoteModal } from "./shareNoteModal";
+import { DiscoverModal } from "./discoverModal";
+import { DkgDashboardView, DKG_DASHBOARD_VIEW } from "./dashboardView";
 import { errorMessage } from "./utils";
 
 export default class OriginTrailSharedMemoryPlugin extends Plugin {
@@ -27,6 +29,14 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     this.updateStatusBar();
 
     this.addSettingTab(new OriginTrailSettingTab(this.app, this));
+
+    this.registerView(DKG_DASHBOARD_VIEW, (leaf) => new DkgDashboardView(leaf, this));
+    this.addRibbonIcon("git-fork", "OriginTrail DKG dashboard", () => this.activateDashboard());
+    this.addCommand({
+      id: "open-dkg-dashboard",
+      name: "Open DKG dashboard",
+      callback: () => this.activateDashboard(),
+    });
 
     this.addCommand({
       id: "test-dkg-connection",
@@ -61,6 +71,12 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
       id: "join-shared-dkg-project",
       name: "Join shared DKG project",
       callback: () => new JoinProjectModal(this, () => this.updateStatusBar()).open(),
+    });
+
+    this.addCommand({
+      id: "discover-shared-notes",
+      name: "Discover shared notes from a project",
+      callback: () => new DiscoverModal(this).open(),
     });
 
     this.addCommand({
@@ -145,6 +161,28 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     const layer = this.settings.autoPromote ? "Shared Memory" : "Working Memory";
     const sync = this.settings.autoSync ? "auto-sync on" : "auto-sync off";
     this.statusBarEl.setText(`DKG: ${project} · ${layer} · ${sync}`);
+    this.refreshDashboard();
+  }
+
+  /** Open (or reveal) the dashboard panel in the right sidebar. */
+  async activateDashboard(): Promise<void> {
+    const { workspace } = this.app;
+    let leaf = workspace.getLeavesOfType(DKG_DASHBOARD_VIEW)[0] ?? null;
+    if (!leaf) {
+      const right = workspace.getRightLeaf(false);
+      if (!right) return;
+      await right.setViewState({ type: DKG_DASHBOARD_VIEW, active: true });
+      leaf = right;
+    }
+    workspace.revealLeaf(leaf);
+  }
+
+  /** Re-render any open dashboard panel after state changes. */
+  refreshDashboard(): void {
+    for (const leaf of this.app.workspace.getLeavesOfType(DKG_DASHBOARD_VIEW)) {
+      const view = leaf.view;
+      if (view instanceof DkgDashboardView) view.render();
+    }
   }
 
   private setStatusSyncing() {
