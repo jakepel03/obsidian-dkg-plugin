@@ -1,4 +1,4 @@
-import { ItemView, setIcon, WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, setIcon, setTooltip, WorkspaceLeaf } from "obsidian";
 import type OriginTrailSharedMemoryPlugin from "./main";
 import { SetupWizardModal } from "./wizard";
 import { CreateProjectModal } from "./createProjectModal";
@@ -23,7 +23,8 @@ interface BtnOpts {
   cta?: boolean;
   ghost?: boolean;
   full?: boolean;
-  onClick: () => void;
+  tooltip?: string;
+  onClick: (btnEl: HTMLButtonElement) => void;
 }
 
 /**
@@ -87,7 +88,7 @@ export class DkgDashboardView extends ItemView {
     const pill = header.createDiv(`dkg-pill is-${this.lastStatus}`);
     pill.createSpan("dkg-dot");
     this.statusText = pill.createSpan({ text: STATUS_LABEL[this.lastStatus] });
-    pill.setAttr("aria-label", "Click to re-check connection");
+    setTooltip(pill, "Connection to your DKG node — click to re-check.");
     pill.onclick = () => void this.checkConnection();
     this.statusPill = pill;
 
@@ -116,8 +117,13 @@ export class DkgDashboardView extends ItemView {
   private renderStatusCard(root: HTMLElement): void {
     const s = this.plugin.settings;
     const card = root.createDiv("dkg-card");
-    kv(card, "Node", s.dkgNodeUrl || "(not set)", true);
-    kv(card, "Vault graph", s.defaultContextGraphId || "Not linked");
+    kv(card, "Node", s.dkgNodeUrl || "(not set)", {
+      mono: true,
+      tooltip: "The local DKG node this vault talks to.",
+    });
+    kv(card, "Vault graph", s.defaultContextGraphId || "Not linked", {
+      tooltip: "Your private knowledge graph on this node. Every note lives here unless you share it to a project.",
+    });
 
     if (!s.defaultContextGraphId) {
       const a = card.createDiv("dkg-actions");
@@ -126,9 +132,32 @@ export class DkgDashboardView extends ItemView {
         text: "Connect vault",
         cta: true,
         full: true,
+        tooltip: "Link this vault to your DKG node and import your notes.",
         onClick: () => new SetupWizardModal(this.plugin, () => this.render()).open(),
       });
+      return;
     }
+
+    card.createEl("p", {
+      cls: "dkg-hint",
+      text: "Your notes are private to this node. Share one to a project to make it visible to others.",
+    });
+
+    const a = card.createDiv("dkg-actions");
+    btn(a, {
+      icon: "refresh-cw",
+      text: "Sync whole vault",
+      ghost: true,
+      full: true,
+      tooltip: "Re-import every note in this vault into your DKG node.",
+      onClick: async (b) => {
+        await runWithFeedback(b, "Syncing…", async () => {
+          const n = await this.plugin.syncWholeVault();
+          new Notice(`DKG: synced ${n} notes.`);
+        });
+        this.render();
+      },
+    });
   }
 
   // ── This note ───────────────────────────────────────────────────────────────
@@ -144,7 +173,7 @@ export class DkgDashboardView extends ItemView {
       return;
     }
     if (!this.plugin.settings.defaultContextGraphId) {
-      card.createEl("p", { cls: "dkg-empty", text: "Connect your vault first." });
+      card.createEl("p", { cls: "dkg-empty", text: "Connect your vault first to sync notes." });
       return;
     }
 
@@ -154,18 +183,43 @@ export class DkgDashboardView extends ItemView {
     kv(
       card,
       "Status",
-      dest.shared ? `Shared to ${dest.projectName}${dest.viaFolderRule ? " (folder rule)" : ""}` : "Private"
+      dest.shared ? `Shared to ${dest.projectName}${dest.viaFolderRule ? " (folder rule)" : ""}` : "Private",
+      {
+        tooltip: dest.shared
+          ? "Promoted into this project's shared memory, visible to its members."
+          : "Only on your node. Use Share to publish it to a project.",
+      }
     );
+
+    const last = this.plugin.lastSync.get(file.path);
+    if (last) {
+      const triples = last.tripleCount != null ? `${last.tripleCount} triples · ` : "";
+      kv(card, "Last sync", `${triples}${relativeTime(last.at)}`, {
+        tooltip: "When this note was last pushed to your DKG node, and how many graph triples it produced.",
+      });
+    }
 
     const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
     const explicitShare = typeof fm?.shared_to === "string" && fm.shared_to.trim().length > 0;
 
     const actions = card.createDiv("dkg-actions");
-    btn(actions, { icon: "refresh-cw", text: "Sync now", cta: true, onClick: () => void this.plugin.syncFile(file) });
+    btn(actions, {
+      icon: "refresh-cw",
+      text: "Sync now",
+      cta: true,
+      tooltip: "Push this note to your DKG node now.",
+      onClick: async (b) => {
+        await runWithFeedback(b, "Syncing…", async () => {
+          await this.plugin.syncFile(file);
+        });
+        this.renderThisNote(el);
+      },
+    });
     if (this.plugin.settings.subscribedContextGraphs.length) {
       btn(actions, {
         icon: "share-2",
         text: dest.shared ? "Change…" : "Share…",
+        tooltip: "Publish this note into a project's shared memory.",
         onClick: () => new ShareNoteModal(this.plugin, file).open(),
       });
     }
@@ -174,6 +228,7 @@ export class DkgDashboardView extends ItemView {
         icon: "minus-circle",
         text: "Make private",
         ghost: true,
+        tooltip: "Stop sharing this note. The already-shared copy ages out of the project over ~30 days.",
         onClick: () => void this.plugin.unshareNote(file).then(() => this.renderThisNote(el)),
       });
     }
@@ -192,16 +247,21 @@ export class DkgDashboardView extends ItemView {
       for (const cg of subs) {
         const row = card.createDiv("dkg-proj");
         const name = row.createDiv("name");
-        name.createSpan({
+        const badge = name.createSpan({
           cls: "dkg-badge" + (cg.role === "owner" ? " owner" : ""),
           text: cg.role === "owner" ? "Owner" : "Member",
         });
+        setTooltip(
+          badge,
+          cg.role === "owner" ? "You own this project — you can manage members." : "You're a member of this project."
+        );
         name.createSpan({ cls: "label", text: cg.name || cg.id }).setAttr("title", cg.id);
         if (cg.role === "owner") {
           btn(row, {
             icon: "settings-2",
             text: "Manage",
             ghost: true,
+            tooltip: "Manage members and copy the invite code.",
             onClick: () => new ManageMembersModal(this.plugin, cg.id, cg.name || cg.id, cg.curated).open(),
           });
         }
@@ -214,12 +274,14 @@ export class DkgDashboardView extends ItemView {
       text: "Create",
       cta: true,
       full: true,
+      tooltip: "Create a shared project others can join.",
       onClick: () => new CreateProjectModal(this.plugin, () => this.render()).open(),
     });
     btn(actions, {
       icon: "log-in",
       text: "Join",
       full: true,
+      tooltip: "Join a project using an invite code.",
       onClick: () => new JoinProjectModal(this.plugin, () => this.render()).open(),
     });
   }
@@ -229,8 +291,9 @@ export class DkgDashboardView extends ItemView {
     const actions = root.createDiv("dkg-actions col");
     btn(actions, {
       icon: "compass",
-      text: "Discover shared notes",
+      text: "Browse shared notes",
       full: true,
+      tooltip: "Browse and search notes shared across your projects.",
       onClick: () => new DiscoverModal(this.plugin).open(),
     });
     btn(actions, {
@@ -238,6 +301,7 @@ export class DkgDashboardView extends ItemView {
       text: "Settings",
       ghost: true,
       full: true,
+      tooltip: "Open plugin settings.",
       onClick: () => {
         const app = this.app as unknown as { setting: { open(): void; openTabById(id: string): void } };
         app.setting.open();
@@ -247,10 +311,11 @@ export class DkgDashboardView extends ItemView {
   }
 }
 
-function kv(card: HTMLElement, k: string, v: string, mono = false): void {
+function kv(card: HTMLElement, k: string, v: string, opts: { mono?: boolean; tooltip?: string } = {}): void {
   const r = card.createDiv("dkg-row");
   r.createSpan({ cls: "k", text: k });
-  r.createSpan({ cls: "v" + (mono ? " mono" : ""), text: v });
+  r.createSpan({ cls: "v" + (opts.mono ? " mono" : ""), text: v });
+  if (opts.tooltip) setTooltip(r, opts.tooltip);
 }
 
 function sectionHead(parent: HTMLElement, icon: string, text: string): void {
@@ -266,7 +331,38 @@ function btn(parent: HTMLElement, opts: BtnOpts): HTMLButtonElement {
   if (opts.full) cls.push("full");
   const b = parent.createEl("button", { cls: cls.join(" ") });
   if (opts.icon) setIcon(b.createSpan("dkg-btn-icon"), opts.icon);
-  b.createSpan({ text: opts.text });
-  b.onclick = opts.onClick;
+  b.createSpan({ cls: "dkg-btn-label", text: opts.text });
+  if (opts.tooltip) setTooltip(b, opts.tooltip);
+  b.onclick = () => opts.onClick(b);
   return b;
+}
+
+/**
+ * Run an async action with inline feedback on the button itself: the icon spins
+ * and the label switches to `busyText` while the work runs, then reverts.
+ */
+async function runWithFeedback(b: HTMLButtonElement, busyText: string, run: () => Promise<void>): Promise<void> {
+  const label = b.querySelector<HTMLElement>(".dkg-btn-label");
+  const original = label?.textContent ?? "";
+  b.classList.add("is-busy");
+  b.setAttribute("disabled", "true");
+  label?.setText(busyText);
+  try {
+    await run();
+  } finally {
+    b.classList.remove("is-busy");
+    b.removeAttribute("disabled");
+    label?.setText(original);
+  }
+}
+
+function relativeTime(then: number): string {
+  const secs = Math.max(0, Math.round((Date.now() - then) / 1000));
+  if (secs < 5) return "just now";
+  if (secs < 60) return `${secs}s ago`;
+  const mins = Math.round(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.round(hrs / 24)}d ago`;
 }
