@@ -1,4 +1,4 @@
-import { ButtonComponent, Setting } from "obsidian";
+import type { ButtonComponent, Setting } from "obsidian";
 import type { DkgClient } from "./dkgClient";
 
 export function errorMessage(error: unknown): string {
@@ -7,6 +7,12 @@ export function errorMessage(error: unknown): string {
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Parse an invite code ("<contextGraphId>\n<curatorPeerId>") into its parts. */
+export function parseInviteCode(code: string): { cgId: string; curatorPeerId: string } {
+  const [first = "", second = ""] = code.trim().split("\n");
+  return { cgId: first.trim(), curatorPeerId: second.trim() };
 }
 
 export async function runConnectionTest(

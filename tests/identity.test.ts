@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { makeAssertionName, normalizeVaultPath, slugifyContextGraphId } from "../src/identity";
+import { makeAssertionName, makeAssertionUri, normalizeVaultPath, slugifyContextGraphId } from "../src/identity";
 
 describe("identity helpers", () => {
   it("slugifies vault names into stable context graph ids", () => {
@@ -35,5 +35,11 @@ describe("identity helpers", () => {
     const a = await makeAssertionName("vault-1", "Folder/Note.md");
     const b = await makeAssertionName("vault-2", "Folder/Note.md");
     expect(a).not.toBe(b);
+  });
+
+  it("builds the canonical assertion entity URI", () => {
+    expect(makeAssertionUri("my-cg", "0xabc", "obsidian-note-123")).toBe(
+      "did:dkg:context-graph:my-cg/assertion/0xabc/obsidian-note-123"
+    );
   });
 });

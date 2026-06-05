@@ -1,13 +1,10 @@
 import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
 import type OriginTrailSharedMemoryPlugin from "./main";
 import type { DkgClient } from "./dkgClient";
-import { errorMessage, sleep } from "./utils";
-
-type Step = "invite" | "pending" | "subscribing" | "done";
+import { errorMessage, parseInviteCode, sleep } from "./utils";
 
 export class JoinProjectModal extends Modal {
   private inviteCode = "";
-  private step: Step = "invite";
   private cgId = "";
   private pendingAgentAddress = "";
 
@@ -54,9 +51,7 @@ export class JoinProjectModal extends Modal {
 
     btn.setButtonText("Connecting…").setDisabled(true);
 
-    const parts = this.inviteCode.split("\n");
-    const cgId = parts[0].trim();
-    const curatorPeerId = parts[1]?.trim() ?? "";
+    const { cgId, curatorPeerId } = parseInviteCode(this.inviteCode);
 
     try {
       const client = this.plugin.client();
@@ -77,7 +72,6 @@ export class JoinProjectModal extends Modal {
         if (result?.alreadyMember || result?.status === "already-member") {
           await this.subscribe();
         } else {
-          this.step = "pending";
           this.renderPending();
         }
       } else {
@@ -86,7 +80,6 @@ export class JoinProjectModal extends Modal {
     } catch (err) {
       const msg = errorMessage(err);
       if (/403|not.*allowlist|not.*allow/i.test(msg)) {
-        this.step = "pending";
         this.renderPending();
       } else {
         new Notice(`Join failed: ${msg}`, 10000);
@@ -137,7 +130,6 @@ export class JoinProjectModal extends Modal {
   }
 
   private async subscribe() {
-    this.step = "subscribing";
     this.renderSubscribing();
 
     const client = this.plugin.client();
@@ -153,7 +145,6 @@ export class JoinProjectModal extends Modal {
       await this.plugin.saveSettings();
     }
 
-    this.step = "done";
     this.renderDone();
     this.onDone?.();
   }
