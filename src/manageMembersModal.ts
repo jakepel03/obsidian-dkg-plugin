@@ -3,8 +3,6 @@ import type OriginTrailSharedMemoryPlugin from "./main";
 import { errorMessage } from "./utils";
 
 export class ManageMembersModal extends Modal {
-  private addAddressInput = "";
-
   constructor(
     private readonly plugin: OriginTrailSharedMemoryPlugin,
     private readonly contextGraphId: string,
@@ -15,7 +13,7 @@ export class ManageMembersModal extends Modal {
   }
 
   onOpen() {
-    this.render();
+    void this.render();
   }
 
   onClose() {
@@ -29,69 +27,39 @@ export class ManageMembersModal extends Modal {
 
     const client = this.plugin.client();
 
-    // ── Invite code ───────────────────────────────────────────────────────────
-    contentEl.createEl("h3", { text: "Invite code" });
-    const inviteContainer = contentEl.createDiv();
-
-    if (this.curated === false) {
-      const inviteCode = this.contextGraphId;
-      const codeEl = inviteContainer.createEl("code");
-      codeEl.style.cssText =
-        "display: block; padding: 10px; background: var(--background-secondary);" +
-        " border-radius: 6px; word-break: break-all; margin: 8px 0; font-size: 0.82em; white-space: pre-wrap;";
-      codeEl.setText(inviteCode);
-      const desc = inviteContainer.createEl("p", {
-        text: "Share this ID with teammates. They paste it into 'Join shared project'.",
-      });
-      desc.style.cssText = "color: var(--text-muted); font-size: 0.85em; margin: 0 0 8px;";
-      new Setting(inviteContainer).addButton((btn) =>
-        btn
-          .setButtonText("Copy invite code")
-          .setCta()
-          .onClick(async () => {
-            await navigator.clipboard.writeText(inviteCode);
-            btn.setButtonText("Copied!");
-            setTimeout(() => btn.setButtonText("Copy invite code"), 2000);
-          })
-      );
-    } else {
-      const statusEl = inviteContainer.createEl("p", { text: "Loading…" });
-      statusEl.style.color = "var(--text-muted)";
-
-      client
-        .getIdentity()
-        .then((identity) => {
-          inviteContainer.empty();
-          const inviteCode = `${this.contextGraphId}\n${identity.peerId}`;
-          const codeEl = inviteContainer.createEl("code");
-          codeEl.style.cssText =
-            "display: block; padding: 10px; background: var(--background-secondary);" +
-            " border-radius: 6px; word-break: break-all; margin: 8px 0; font-size: 0.82em; white-space: pre-wrap;";
-          codeEl.setText(inviteCode);
-          new Setting(inviteContainer).addButton((btn) =>
-            btn
-              .setButtonText("Copy invite code")
-              .setCta()
-              .onClick(async () => {
-                await navigator.clipboard.writeText(inviteCode);
-                btn.setButtonText("Copied!");
-                setTimeout(() => btn.setButtonText("Copy invite code"), 2000);
-              })
-          );
-        })
-        .catch(() => {
-          statusEl.setText("Could not load invite code.");
-          statusEl.style.color = "var(--color-red)";
-        });
+    // Resolve my own identity once (best-effort): used for the curated invite
+    // code and to mark / protect my own row in the member list.
+    let myAddress = "";
+    let myPeerId = "";
+    try {
+      const id = await client.getIdentity();
+      myAddress = (id.agentAddress ?? "").toLowerCase();
+      myPeerId = id.peerId ?? "";
+    } catch {
+      // Non-fatal: invite falls back to an error line, self-row just won't be tagged.
     }
 
-    // Fetch data in parallel
-    let participants: string[] = [];
-    let joinRequests: any[] = [];
+    // ── Invite code ───────────────────────────────────────────────────────────
+    contentEl.createEl("h3", { text: "Invite code" });
+    const desc = contentEl.createEl("p", {
+      text: "Share this code with teammates. They paste it into “Join shared project”, then their request appears below for you to approve.",
+    });
+    desc.style.cssText = "color: var(--text-muted); font-size: 0.85em; margin: 0 0 8px;";
 
-    const loadingEl = contentEl.createEl("p", { text: "Loading…" });
+    if (this.curated === false) {
+      this.renderInviteCode(contentEl, this.contextGraphId);
+    } else if (myPeerId) {
+      this.renderInviteCode(contentEl, `${this.contextGraphId}\n${myPeerId}`);
+    } else {
+      contentEl.createEl("p", { text: "Could not load invite code." }).style.color = "var(--color-red)";
+    }
+
+    // ── Load members + join requests ──────────────────────────────────────────
+    const loadingEl = contentEl.createEl("p", { text: "Loading members…" });
     loadingEl.style.color = "var(--text-muted)";
 
+    let participants: string[] = [];
+    let joinRequests: Array<Record<string, unknown>> = [];
     try {
       [{ allowedAgents: participants }, joinRequests] = await Promise.all([
         client.listParticipants(this.contextGraphId).catch(() => ({ allowedAgents: [] })),
@@ -102,17 +70,15 @@ export class ManageMembersModal extends Modal {
       loadingEl.style.color = "var(--color-red)";
       return;
     }
-
     loadingEl.remove();
 
     // ── Pending join requests ─────────────────────────────────────────────────
     if (joinRequests.length > 0) {
       contentEl.createEl("h3", { text: "Pending join requests" });
-
       for (const req of joinRequests) {
-        const addr: string = req.agentAddress ?? req.delegation?.agentAddress ?? "(unknown)";
-        const label = req.agentName ? `${req.agentName} (${addr})` : addr;
-
+        const delegation = req.delegation as Record<string, unknown> | undefined;
+        const addr = String(req.agentAddress ?? delegation?.agentAddress ?? "(unknown)");
+        const label = req.agentName ? `${String(req.agentName)} (${addr})` : addr;
         new Setting(contentEl).setName(label).addButton((btn) =>
           btn
             .setButtonText("Approve")
@@ -122,7 +88,7 @@ export class ManageMembersModal extends Modal {
               try {
                 await client.approveJoinRequest(this.contextGraphId, addr);
                 new Notice(`Approved ${label}`);
-                this.render();
+                void this.render();
               } catch (err) {
                 new Notice(`Approve failed: ${errorMessage(err)}`, 8000);
                 btn.setButtonText("Approve").setDisabled(false);
@@ -134,62 +100,50 @@ export class ManageMembersModal extends Modal {
 
     // ── Current members ───────────────────────────────────────────────────────
     contentEl.createEl("h3", { text: "Current members" });
-
     if (participants.length === 0) {
-      contentEl.createEl("p", { text: "No members yet." }).style.color = "var(--text-muted)";
-    } else {
-      for (const addr of participants) {
-        new Setting(contentEl).setName(addr).addButton((btn) =>
-          btn
-            .setButtonText("Remove")
-            .setWarning()
-            .onClick(async () => {
-              btn.setButtonText("Removing…").setDisabled(true);
-              try {
-                await client.removeParticipant(this.contextGraphId, addr);
-                new Notice(`Removed ${addr}`);
-                this.render();
-              } catch (err) {
-                new Notice(`Remove failed: ${errorMessage(err)}`, 8000);
-                btn.setButtonText("Remove").setDisabled(false);
-              }
-            })
-        );
-      }
+      contentEl.createEl("p", { text: "No members yet. Share the invite code above." }).style.color =
+        "var(--text-muted)";
+      return;
     }
-
-    // ── Add member ────────────────────────────────────────────────────────────
-    contentEl.createEl("h3", { text: "Add member" });
-
-    new Setting(contentEl)
-      .setName("Agent address")
-      .setDesc("Ethereum address of the agent to invite.")
-      .addText((text) =>
-        text
-          .setPlaceholder("0x…")
-          .setValue(this.addAddressInput)
-          .onChange((v) => (this.addAddressInput = v.trim()))
-      )
-      .addButton((btn) =>
+    for (const addr of participants) {
+      const isMe = !!myAddress && addr.toLowerCase() === myAddress;
+      const setting = new Setting(contentEl).setName(isMe ? `${addr}  —  You` : addr);
+      // You can't remove yourself — that would lock you out of your own project.
+      if (isMe) continue;
+      setting.addButton((btn) =>
         btn
-          .setButtonText("Add")
-          .setCta()
+          .setButtonText("Remove")
+          .setWarning()
           .onClick(async () => {
-            if (!this.addAddressInput) {
-              new Notice("Enter an agent address.");
-              return;
-            }
-            btn.setButtonText("Adding…").setDisabled(true);
+            btn.setButtonText("Removing…").setDisabled(true);
             try {
-              await client.addParticipant(this.contextGraphId, this.addAddressInput);
-              new Notice(`Added ${this.addAddressInput}`);
-              this.addAddressInput = "";
-              this.render();
+              await client.removeParticipant(this.contextGraphId, addr);
+              new Notice(`Removed ${addr}`);
+              void this.render();
             } catch (err) {
-              new Notice(`Add failed: ${errorMessage(err)}`, 8000);
-              btn.setButtonText("Add").setDisabled(false);
+              new Notice(`Remove failed: ${errorMessage(err)}`, 8000);
+              btn.setButtonText("Remove").setDisabled(false);
             }
           })
       );
+    }
+  }
+
+  private renderInviteCode(container: HTMLElement, code: string): void {
+    const codeEl = container.createEl("code");
+    codeEl.style.cssText =
+      "display: block; padding: 10px; background: var(--background-secondary);" +
+      " border-radius: 6px; word-break: break-all; margin: 8px 0; font-size: 0.82em; white-space: pre-wrap;";
+    codeEl.setText(code);
+    new Setting(container).addButton((btn) =>
+      btn
+        .setButtonText("Copy invite code")
+        .setCta()
+        .onClick(async () => {
+          await navigator.clipboard.writeText(code);
+          btn.setButtonText("Copied!");
+          setTimeout(() => btn.setButtonText("Copy invite code"), 2000);
+        })
+    );
   }
 }

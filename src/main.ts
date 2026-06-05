@@ -3,7 +3,7 @@ import { DkgClient } from "./dkgClient";
 import { makeVaultId, slugifyContextGraphId, makeAssertionName } from "./identity";
 import { syncAllMarkdownFiles, syncMarkdownFile, shouldSkipPath, resolveRouting, type SyncOptions } from "./noteSync";
 import { OriginTrailSettingTab } from "./settings";
-import { DEFAULT_SETTINGS, type OriginTrailSettings } from "./types";
+import { DEFAULT_SETTINGS, type OriginTrailSettings, type SyncResult } from "./types";
 import { SetupWizardModal } from "./wizard";
 import { CreateProjectModal } from "./createProjectModal";
 import { JoinProjectModal } from "./joinProjectModal";
@@ -20,6 +20,8 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
   private hadSyncError = false;
   private savedStatusTimer: number | null = null;
   private cachedAgentAddress?: string;
+  /** Last sync outcome per note path, so the dashboard can show "✓ N triples · just now". */
+  readonly lastSync = new Map<string, { status: SyncResult["status"]; tripleCount?: number; at: number }>();
 
   async onload() {
     await this.loadSettings();
@@ -283,12 +285,12 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     return results.length;
   }
 
-  async syncFile(file: TFile, silent = false) {
+  async syncFile(file: TFile, silent = false): Promise<SyncResult | undefined> {
     if (!this.settings.defaultContextGraphId) {
       new Notice('This vault is not connected to DKG yet. Run "Connect this vault to OriginTrail DKG" first.');
-      return;
+      return undefined;
     }
-    if (file.extension !== "md" || shouldSkipPath(file.path)) return;
+    if (file.extension !== "md" || shouldSkipPath(file.path)) return undefined;
 
     if (this.activeSyncs === 0) this.hadSyncError = false;
     this.activeSyncs++;
@@ -296,12 +298,15 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     try {
       await this.ensureAgentAddress();
       const result = await syncMarkdownFile(this.app, this.client(), file, this.syncOptions());
+      this.lastSync.set(file.path, { status: result.status, tripleCount: result.tripleCount, at: Date.now() });
       if (result.warning) new Notice(`DKG: ${result.warning}`, 8000);
       if (!silent) new Notice(`DKG ${result.status}: ${file.path}`);
+      return result;
     } catch (error) {
       this.hadSyncError = true;
       console.error(error);
       new Notice(`DKG sync failed for ${file.path}: ${errorMessage(error)}`, 10000);
+      return undefined;
     } finally {
       this.activeSyncs--;
       if (this.activeSyncs === 0) {
@@ -309,6 +314,25 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
         else this.setStatusSaved();
       }
     }
+  }
+
+  /** Sync every Markdown note in the vault (manual full re-sync from the dashboard). */
+  async syncWholeVault(onProgress?: (done: number, total: number) => void): Promise<number> {
+    if (!this.settings.defaultContextGraphId) {
+      new Notice("Connect your vault to DKG first.");
+      return 0;
+    }
+    await this.ensureAgentAddress();
+    const results = await syncAllMarkdownFiles(this.app, this.client(), this.syncOptions(), (done, total, file) => {
+      this.setStatusSyncing();
+      onProgress?.(done, total);
+      void file;
+    });
+    for (const r of results) {
+      this.lastSync.set(r.filePath, { status: r.status, tripleCount: r.tripleCount, at: Date.now() });
+    }
+    this.setStatusSaved();
+    return results.length;
   }
 
   async unshareNote(file: TFile) {

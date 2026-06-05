@@ -124,44 +124,12 @@
   font-size: var(--font-ui-smaller);
 }
 
-/* Chips (toggles) */
-.dkg-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.dkg-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: var(--font-ui-smaller);
+/* Inline hint / explainer text inside a card */
+.dkg-hint {
+  margin: 0;
   color: var(--text-muted);
-  background: var(--background-modifier-hover);
-  border: 1px solid var(--background-modifier-border);
-  cursor: pointer;
-  transition:
-    background 120ms ease,
-    color 120ms ease,
-    border-color 120ms ease;
-}
-.dkg-chip:hover {
-  background: var(--background-modifier-active-hover);
-}
-.dkg-chip.is-active {
-  color: var(--text-normal);
-  background: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
-  border-color: color-mix(in srgb, var(--interactive-accent) 38%, transparent);
-}
-.dkg-chip .dkg-dot-sm {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-faint);
-}
-.dkg-chip.is-active .dkg-dot-sm {
-  background: var(--interactive-accent);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
 }
 
 /* Sections */
@@ -252,6 +220,19 @@
 .dkg-btn[disabled] {
   opacity: 0.5;
   cursor: default;
+}
+/* Inline busy state: spin the icon while an action runs */
+.dkg-btn.is-busy {
+  opacity: 0.8;
+  cursor: default;
+}
+.dkg-btn.is-busy .dkg-btn-icon svg {
+  animation: dkg-spin 0.7s linear infinite;
+}
+@keyframes dkg-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Note + project rows */
