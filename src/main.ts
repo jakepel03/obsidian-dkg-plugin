@@ -238,7 +238,7 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     try {
       const client = this.client();
       await client.status();
-      if (this.settings.authToken.trim()) await client.identity();
+      if (this.settings.authToken.trim()) await client.getIdentity();
       new Notice("OriginTrail DKG connection OK");
     } catch (error) {
       console.error(error);

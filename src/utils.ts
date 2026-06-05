@@ -5,6 +5,10 @@ export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+export function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function runConnectionTest(
   client: DkgClient,
   statusSetting: Setting,
@@ -23,7 +27,7 @@ export async function runConnectionTest(
     if (skipIdentityCheck) {
       statusSetting.setDesc("Connected — node reachable (no auth token configured)");
     } else {
-      await client.identity();
+      await client.getIdentity();
       statusSetting.setDesc("Connected — node reachable, identity verified");
     }
     statusSetting.descEl.style.color = "var(--color-green)";

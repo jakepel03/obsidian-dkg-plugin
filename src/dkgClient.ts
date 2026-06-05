@@ -1,4 +1,11 @@
-import type { ContextGraphSummary, RequestTransport } from "./types";
+import type {
+  AgentIdentity,
+  CatchupStatus,
+  ContextGraphSummary,
+  ExtractionStatusResponse,
+  ImportResult,
+  RequestTransport,
+} from "./types";
 
 export class DkgClient {
   constructor(
@@ -11,43 +18,42 @@ export class DkgClient {
     return this.json("GET", "/api/status");
   }
 
-  async identity(): Promise<unknown> {
-    return this.json("GET", "/api/agent/identity");
-  }
-
-  async getIdentity(): Promise<{ agentAddress: string; peerId: string; name: string; agentDid: string }> {
-    return this.json("GET", "/api/agent/identity") as any;
+  async getIdentity(): Promise<AgentIdentity> {
+    return this.json("GET", "/api/agent/identity") as Promise<AgentIdentity>;
   }
 
   async listContextGraphs(): Promise<ContextGraphSummary[]> {
     const data = await this.json("GET", "/api/context-graph/list");
-    const raw = Array.isArray(data) ? data : ((data as any).contextGraphs ?? (data as any).graphs ?? []);
+    const container = data as { contextGraphs?: unknown[]; graphs?: unknown[] };
+    const raw: unknown[] = Array.isArray(data) ? data : (container.contextGraphs ?? container.graphs ?? []);
     return raw
-      .map((g: any) => ({
-        id: String(g.id ?? g.contextGraphId ?? g.context_graph_id ?? ""),
-        name: String(g.name ?? g.displayName ?? g.id ?? g.contextGraphId ?? ""),
-        subscribed: g.subscribed,
-        synced: g.synced,
-      }))
-      .filter((g: ContextGraphSummary) => g.id.length > 0);
+      .map((entry) => {
+        const g = entry as Record<string, unknown>;
+        return {
+          id: String(g.id ?? g.contextGraphId ?? g.context_graph_id ?? ""),
+          name: String(g.name ?? g.displayName ?? g.id ?? g.contextGraphId ?? ""),
+        };
+      })
+      .filter((g) => g.id.length > 0);
   }
 
-  async createContextGraph(id: string, name: string): Promise<unknown> {
+  /**
+   * Create a context graph. Policy semantics (verified against DKG rc.17):
+   *  - `accessPolicy`: 0 = public (anyone can subscribe), 1 = private (allowlist).
+   *  - `publishPolicy`: 0 = curated (only allowlisted agents write), 1 = open (any subscriber writes).
+   * Defaults to a private vault graph (`accessPolicy: 1`).
+   */
+  async createContextGraph(
+    id: string,
+    name: string,
+    opts: { accessPolicy?: number; publishPolicy?: number; description?: string } = {}
+  ): Promise<unknown> {
     return this.json("POST", "/api/context-graph/create", {
       id,
       name,
-      description: `Obsidian vault project for ${name}`,
-      accessPolicy: 1,
-    });
-  }
-
-  async createCuratedContextGraph(id: string, name: string): Promise<unknown> {
-    return this.json("POST", "/api/context-graph/create", {
-      id,
-      name,
-      description: `Obsidian shared project: ${name}`,
-      publishPolicy: 0,
-      accessPolicy: 1,
+      description: opts.description ?? `Obsidian project for ${name}`,
+      accessPolicy: opts.accessPolicy ?? 1,
+      ...(opts.publishPolicy !== undefined ? { publishPolicy: opts.publishPolicy } : {}),
     });
   }
 
@@ -68,11 +74,28 @@ export class DkgClient {
     });
   }
 
-  async subscribeToContextGraph(contextGraphId: string): Promise<any> {
+  async subscribeToContextGraph(contextGraphId: string): Promise<{ catchup?: CatchupStatus }> {
     return this.json("POST", "/api/context-graph/subscribe", {
       contextGraphId,
       includeSharedMemory: true,
-    });
+    }) as Promise<{ catchup?: CatchupStatus }>;
+  }
+
+  /**
+   * Poll the status of a context graph's catch-up (replication) job. Returns
+   * null when no job is tracked (e.g. catch-up already finished and was pruned),
+   * which callers treat as "no longer running".
+   */
+  async catchupStatus(contextGraphId: string): Promise<CatchupStatus | null> {
+    try {
+      const data = await this.json(
+        "GET",
+        `/api/sync/catchup-status?contextGraphId=${encodeURIComponent(contextGraphId)}`
+      );
+      return data as CatchupStatus;
+    } catch {
+      return null;
+    }
   }
 
   async listParticipants(contextGraphId: string): Promise<{ allowedAgents: string[] }> {
@@ -116,16 +139,12 @@ export class DkgClient {
     return after.find((g) => g.id === id || g.name === name) ?? { id, name };
   }
 
-  async createAssertion(contextGraphId: string, name: string): Promise<unknown> {
-    return this.json("POST", "/api/assertion/create", { contextGraphId, name });
-  }
-
   async importMarkdown(
     contextGraphId: string,
     assertionName: string,
     fileName: string,
     markdown: string
-  ): Promise<any> {
+  ): Promise<ImportResult> {
     const boundary = `----obsidian-origintrail-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const body = this.multipartBody(
       boundary,
@@ -143,12 +162,15 @@ export class DkgClient {
 
     return this.rawJson("POST", `/api/assertion/${encodeURIComponent(assertionName)}/import-file`, body, {
       "Content-Type": `multipart/form-data; boundary=${boundary}`,
-    });
+    }) as Promise<ImportResult>;
   }
 
-  async extractionStatus(contextGraphId: string, assertionName: string): Promise<any> {
+  async extractionStatus(contextGraphId: string, assertionName: string): Promise<ExtractionStatusResponse> {
     const query = `contextGraphId=${encodeURIComponent(contextGraphId)}`;
-    return this.json("GET", `/api/assertion/${encodeURIComponent(assertionName)}/extraction-status?${query}`);
+    return this.json(
+      "GET",
+      `/api/assertion/${encodeURIComponent(assertionName)}/extraction-status?${query}`
+    ) as Promise<ExtractionStatusResponse>;
   }
 
   async promoteAssertion(contextGraphId: string, assertionName: string): Promise<unknown> {

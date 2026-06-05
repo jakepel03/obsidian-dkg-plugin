@@ -75,10 +75,11 @@ export class CreateProjectModal extends Modal {
       const identity = await client.getIdentity();
       const cgId = slugifyContextGraphId(this.name);
 
+      // Curated: private allowlist + curated write. Open: public subscribe + open write.
       const createFn =
         this.mode === "curated"
-          ? () => client.createCuratedContextGraph(cgId, this.name)
-          : () => client.createContextGraph(cgId, this.name);
+          ? () => client.createContextGraph(cgId, this.name, { accessPolicy: 1, publishPolicy: 0 })
+          : () => client.createContextGraph(cgId, this.name, { accessPolicy: 0, publishPolicy: 1 });
 
       try {
         await createFn();

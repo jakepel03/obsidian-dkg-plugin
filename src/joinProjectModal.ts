@@ -1,6 +1,7 @@
 import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
 import type OriginTrailSharedMemoryPlugin from "./main";
-import { errorMessage } from "./utils";
+import type { DkgClient } from "./dkgClient";
+import { errorMessage, sleep } from "./utils";
 
 type Step = "invite" | "pending" | "subscribing" | "done";
 
@@ -157,11 +158,14 @@ export class JoinProjectModal extends Modal {
     this.onDone?.();
   }
 
-  private async pollCatchup(client: ReturnType<OriginTrailSharedMemoryPlugin["client"]>) {
+  /** Poll the catch-up job to completion without re-triggering the subscribe. */
+  private async pollCatchup(client: DkgClient) {
     for (let i = 0; i < 60; i++) {
       await sleep(2000);
-      const status = await client.subscribeToContextGraph(this.cgId);
-      const s = status?.catchup?.status;
+      const status = await client.catchupStatus(this.cgId);
+      // null = no job tracked (already finished and pruned) → stop polling.
+      if (!status) break;
+      const s = status.status;
       if (s === "done" || s === "failed" || s === "denied" || s === "unreachable") break;
     }
   }
@@ -189,8 +193,4 @@ export class JoinProjectModal extends Modal {
         .onClick(() => this.close())
     );
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
 }
