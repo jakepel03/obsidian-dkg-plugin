@@ -13,8 +13,8 @@ import { DkgDashboardView, DKG_DASHBOARD_VIEW } from "./dashboardView";
 import { errorMessage } from "./utils";
 
 export default class OriginTrailSharedMemoryPlugin extends Plugin {
-  settings: OriginTrailSettings;
-  private statusBarEl: HTMLElement;
+  settings!: OriginTrailSettings;
+  private statusBarEl!: HTMLElement;
   private pendingSyncTimers = new Map<string, number>();
   private activeSyncs = 0;
   private hadSyncError = false;

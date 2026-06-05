@@ -3,14 +3,10 @@ import type OriginTrailSharedMemoryPlugin from "./main";
 import { slugifyContextGraphId } from "./identity";
 import { errorMessage } from "./utils";
 
-type Step = "form" | "created";
-
 export class CreateProjectModal extends Modal {
   private name = "";
   private mode: "curated" | "open" = "curated";
-  private step: Step = "form";
   private inviteCode = "";
-  private cgId = "";
   private cgName = "";
 
   constructor(
@@ -90,7 +86,6 @@ export class CreateProjectModal extends Modal {
 
       this.inviteCode = this.mode === "curated" ? `${cgId}\n${identity.peerId}` : cgId;
 
-      this.cgId = cgId;
       this.cgName = this.name;
 
       const already = this.plugin.settings.subscribedContextGraphs.find((c) => c.id === cgId);
@@ -104,7 +99,6 @@ export class CreateProjectModal extends Modal {
         await this.plugin.saveSettings();
       }
 
-      this.step = "created";
       this.renderCreated();
       this.onDone?.();
     } catch (err) {
