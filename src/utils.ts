@@ -24,7 +24,7 @@ export async function runConnectionTest(
   testBtn.setButtonText("Testing...");
   testBtn.setDisabled(true);
   statusSetting.setDesc("Connecting...");
-  statusSetting.descEl.style.color = "var(--text-muted)";
+  statusSetting.descEl.removeClasses(["dkg-status-ok", "dkg-status-error"]);
 
   let nodeOk = false;
   try {
@@ -36,7 +36,7 @@ export async function runConnectionTest(
       await client.getIdentity();
       statusSetting.setDesc("Connected — node reachable, identity verified");
     }
-    statusSetting.descEl.style.color = "var(--color-green)";
+    statusSetting.descEl.addClass("dkg-status-ok");
     return true;
   } catch (err) {
     console.error("[DKG] connection test failed:", err);
@@ -45,7 +45,7 @@ export async function runConnectionTest(
         ? "Node reachable but identity check failed — check your auth token"
         : "Could not reach node — check the URL and that your node is running"
     );
-    statusSetting.descEl.style.color = "var(--color-red)";
+    statusSetting.descEl.addClass("dkg-status-error");
     return false;
   } finally {
     testBtn.setButtonText("Test");

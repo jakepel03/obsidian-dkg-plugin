@@ -115,10 +115,7 @@ export class CreateProjectModal extends Modal {
       text: `"${this.cgName}" is ready. Share the invite code below with teammates so they can join.`,
     });
 
-    const codeEl = contentEl.createEl("code");
-    codeEl.style.cssText =
-      "display: block; padding: 10px; background: var(--background-secondary);" +
-      " border-radius: 6px; word-break: break-all; margin: 8px 0; font-size: 0.82em; white-space: pre-wrap;";
+    const codeEl = contentEl.createEl("code", { cls: "dkg-code-block" });
     codeEl.setText(this.inviteCode);
 
     new Setting(contentEl)

@@ -38,32 +38,24 @@ export class OriginTrailSettingTab extends PluginSettingTab {
     } else {
       containerEl.createEl("h3", { text: "Status" });
 
-      const card = containerEl.createDiv();
-      card.style.cssText =
-        "display: flex; align-items: flex-start; justify-content: space-between;" +
-        " background: var(--background-secondary); border-radius: 8px;" +
-        " border-left: 3px solid var(--interactive-accent); padding: 12px 16px; margin: 4px 0 16px;";
+      const card = containerEl.createDiv({ cls: "dkg-status-card" });
 
-      const info = card.createDiv();
-      info.style.cssText = "display: flex; flex-direction: column; gap: 6px;";
+      const info = card.createDiv({ cls: "dkg-status-card-info" });
 
       const makeRow = (label: string, value: string) => {
-        const row = info.createDiv();
-        row.style.cssText = "display: flex; gap: 10px; font-size: 0.88em; line-height: 1.4;";
-        const lbl = row.createEl("span", { text: label });
-        lbl.style.cssText = "color: var(--text-muted); min-width: 80px;";
+        const row = info.createDiv({ cls: "dkg-status-card-row" });
+        row.createEl("span", { cls: "dkg-status-card-label", text: label });
         row.createEl("span", { text: value });
       };
 
       makeRow("DKG Project", this.plugin.settings.defaultContextGraphId);
       makeRow("Node", this.plugin.settings.dkgNodeUrl || "(not set)");
 
-      const btnGroup = card.createDiv();
-      btnGroup.style.cssText = "display: flex; flex-direction: column; gap: 6px; align-items: flex-end;";
+      const btnGroup = card.createDiv({ cls: "dkg-status-card-btns" });
 
       const manageBtn = new ButtonComponent(btnGroup);
       manageBtn.setButtonText("Manage access");
-      manageBtn.buttonEl.style.cssText = "font-size: 0.85em;";
+      manageBtn.buttonEl.addClass("dkg-card-btn-sm");
       manageBtn.onClick(() => {
         const cgId = this.plugin.settings.defaultContextGraphId;
         const name = this.plugin.app.vault.getName();
@@ -72,8 +64,7 @@ export class OriginTrailSettingTab extends PluginSettingTab {
 
       const reconfigBtn = new ButtonComponent(btnGroup);
       reconfigBtn.setButtonText("Reconfigure →");
-      reconfigBtn.buttonEl.style.cssText =
-        "background: none; box-shadow: none; color: var(--text-muted); font-size: 0.85em; padding: 0;";
+      reconfigBtn.buttonEl.addClass("dkg-card-btn-ghost");
       reconfigBtn.onClick(() => new SetupWizardModal(this.plugin, () => this.display()).open());
     }
 
@@ -83,8 +74,7 @@ export class OriginTrailSettingTab extends PluginSettingTab {
     const subscribed = this.plugin.settings.subscribedContextGraphs;
 
     if (subscribed.length === 0) {
-      const empty = containerEl.createEl("p", { text: "No shared projects yet." });
-      empty.style.cssText = "color: var(--text-muted); font-size: 0.9em; margin: 4px 0 12px;";
+      containerEl.createEl("p", { cls: "dkg-para-muted", text: "No shared projects yet." });
     } else {
       for (const cg of subscribed) {
         const s = new Setting(containerEl)
@@ -130,14 +120,16 @@ export class OriginTrailSettingTab extends PluginSettingTab {
     // ── Sharing ────────────────────────────────────────────────────────────────
     containerEl.createEl("h3", { text: "Sharing" });
 
-    const sharingDesc = containerEl.createEl("p", {
+    containerEl.createEl("p", {
+      cls: "dkg-para-muted",
       text: "Notes are private by default. Share a single note to a project from the dashboard, or add a folder rule below to share everything inside a folder automatically.",
     });
-    sharingDesc.style.cssText = "color: var(--text-muted); font-size: 0.9em; margin: 4px 0 12px;";
 
     if (subscribed.length === 0) {
-      const note = containerEl.createEl("p", { text: "Create or join a project first to set up folder sharing." });
-      note.style.cssText = "color: var(--text-muted); font-size: 0.9em; margin: 4px 0 12px;";
+      containerEl.createEl("p", {
+        cls: "dkg-para-muted",
+        text: "Create or join a project first to set up folder sharing.",
+      });
     } else {
       const rules = this.plugin.settings.folderDestinations;
       for (const rule of rules) {
@@ -222,18 +214,14 @@ export class OriginTrailSettingTab extends PluginSettingTab {
     });
 
     // ── Advanced ─────────────────────────────────────────────────────────────
-    const details = containerEl.createEl("details");
-    details.style.cssText = "margin-top: 28px;";
-    const summary = details.createEl("summary");
-    summary.style.cssText =
-      "cursor: pointer; color: var(--text-muted); font-size: 0.88em; user-select: none; list-style: none;";
+    const details = containerEl.createEl("details", { cls: "dkg-advanced-details" });
+    const summary = details.createEl("summary", { cls: "dkg-advanced-summary" });
     summary.setText("▸ Advanced");
     details.addEventListener("toggle", () => {
       summary.setText(details.open ? "▾ Advanced" : "▸ Advanced");
     });
 
-    const advancedEl = details.createDiv();
-    advancedEl.style.cssText = "margin-top: 8px;";
+    const advancedEl = details.createDiv({ cls: "dkg-advanced-body" });
 
     new Setting(advancedEl)
       .setName("Auto-sync saved notes")

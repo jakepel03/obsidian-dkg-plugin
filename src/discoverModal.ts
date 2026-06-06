@@ -50,29 +50,26 @@ export class DiscoverModal extends Modal {
     contentEl.createEl("h2", { text: "Browse shared notes" });
 
     if (this.plugin.settings.subscribedContextGraphs.length === 0) {
-      contentEl
-        .createEl("p", {
-          text: "You're not in any shared projects yet. Create or join one to browse shared notes.",
-        })
-        .style.setProperty("color", "var(--text-muted)");
+      contentEl.createEl("p", {
+        cls: "dkg-text-muted",
+        text: "You're not in any shared projects yet. Create or join one to browse shared notes.",
+      });
       return;
     }
 
-    const hint = contentEl.createEl("p", {
+    contentEl.createEl("p", {
+      cls: "dkg-discover-hint",
       text: "Notes others share sync as a knowledge graph (title + links). Forking a peer's note reconstructs a stub — full prose isn't replicated across nodes yet.",
     });
-    hint.style.cssText = "color: var(--text-muted); font-size: 0.85em; margin: 0 0 10px;";
 
-    const search = contentEl.createEl("input", { type: "text" });
+    const search = contentEl.createEl("input", { type: "text", cls: "dkg-search-input" });
     search.placeholder = "Search by title, project, or curator…";
-    search.style.cssText = "width: 100%; margin-bottom: 10px;";
     search.addEventListener("input", () => {
       this.query = search.value.trim().toLowerCase();
       this.renderList();
     });
 
-    this.statusEl = contentEl.createEl("p", { text: "Loading shared notes…" });
-    this.statusEl.style.cssText = "color: var(--text-muted); font-size: 0.85em;";
+    this.statusEl = contentEl.createEl("p", { cls: "dkg-discover-status", text: "Loading shared notes…" });
 
     this.listEl = contentEl.createDiv({ cls: "dkg-discover-list" });
   }
@@ -98,7 +95,8 @@ export class DiscoverModal extends Modal {
     } catch (err) {
       if (this.statusEl) {
         this.statusEl.setText(`Failed to load: ${errorMessage(err)}`);
-        this.statusEl.style.color = "var(--color-red)";
+        this.statusEl.addClass("dkg-status-error");
+        this.statusEl.removeClass("dkg-discover-status");
       }
       return;
     }
@@ -133,7 +131,7 @@ export class DiscoverModal extends Modal {
 
     const notes = this.filtered();
     if (this.loaded && notes.length === 0 && this.query) {
-      container.createEl("p", { text: "No matches." }).style.setProperty("color", "var(--text-muted)");
+      container.createEl("p", { cls: "dkg-text-muted", text: "No matches." });
       return;
     }
 

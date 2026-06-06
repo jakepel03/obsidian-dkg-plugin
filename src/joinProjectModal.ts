@@ -31,7 +31,7 @@ export class JoinProjectModal extends Modal {
 
     new Setting(contentEl).setName("Invite code").addTextArea((text) => {
       text.inputEl.rows = 3;
-      text.inputEl.style.cssText = "width: 100%; font-family: var(--font-monospace); font-size: 0.85em;";
+      text.inputEl.addClass("dkg-invite-input");
       text.setPlaceholder("project-id\ncuratorPeerId").onChange((v) => (this.inviteCode = v.trim()));
     });
 
@@ -96,13 +96,12 @@ export class JoinProjectModal extends Modal {
       text: "Your join request was sent to the curator. Once they approve, click the button below to subscribe.",
     });
 
-    const hint = contentEl.createEl("p", { text: "Share your agent address with the curator if they ask for it:" });
-    hint.style.cssText = "margin-top: 12px; font-size: 0.9em; color: var(--text-muted);";
+    contentEl.createEl("p", {
+      cls: "dkg-pending-hint",
+      text: "Share your agent address with the curator if they ask for it:",
+    });
 
-    const addrEl = contentEl.createEl("code");
-    addrEl.style.cssText =
-      "display: block; padding: 10px; background: var(--background-secondary);" +
-      " border-radius: 6px; word-break: break-all; margin: 4px 0 16px; font-size: 0.85em;";
+    const addrEl = contentEl.createEl("code", { cls: "dkg-address-block" });
     addrEl.setText(this.pendingAgentAddress);
 
     new Setting(contentEl)

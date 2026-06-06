@@ -2,9 +2,6 @@
   font-size: var(--font-ui-smaller);
 }
 
-.origintrail-sm-muted {
-  color: var(--text-muted);
-}
 
 /* ──────────────────────────────────────────────────────────────────────────
    DKG dashboard panel
@@ -282,4 +279,238 @@
 .dkg-badge.owner {
   color: var(--text-normal);
   background: color-mix(in srgb, var(--interactive-accent) 16%, transparent);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Modals + settings
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Shared invite / address code block used in createProjectModal,
+   manageMembersModal, and joinProjectModal */
+.dkg-code-block {
+  display: block;
+  padding: 10px;
+  background: var(--background-secondary);
+  border-radius: 6px;
+  word-break: break-all;
+  margin: 8px 0;
+  font-size: 0.82em;
+  white-space: pre-wrap;
+}
+
+/* Address code block in joinProjectModal (slightly different margin/size) */
+.dkg-address-block {
+  display: block;
+  padding: 10px;
+  background: var(--background-secondary);
+  border-radius: 6px;
+  word-break: break-all;
+  margin: 4px 0 16px;
+  font-size: 0.85em;
+}
+
+/* Muted description paragraph (manageMembersModal invite desc, settings paragraphs) */
+.dkg-desc-muted {
+  color: var(--text-muted);
+  font-size: 0.85em;
+  margin: 0 0 8px;
+}
+
+/* Muted small paragraph — sharing section, empty states (settings.ts) */
+.dkg-para-muted {
+  color: var(--text-muted);
+  font-size: 0.9em;
+  margin: 4px 0 12px;
+}
+
+/* Inline muted text color applied to single elements at runtime */
+.dkg-text-muted {
+  color: var(--text-muted);
+}
+
+/* Error / success inline status colors — toggled at runtime */
+.dkg-status-ok {
+  color: var(--color-green);
+}
+.dkg-status-error {
+  color: var(--color-red);
+}
+
+/* joinProjectModal: hint paragraph above the address block */
+.dkg-pending-hint {
+  margin-top: 12px;
+  font-size: 0.9em;
+  color: var(--text-muted);
+}
+
+/* joinProjectModal / discoverModal: textarea / search input full-width monospace */
+.dkg-invite-input {
+  width: 100%;
+  font-family: var(--font-monospace);
+  font-size: 0.85em;
+}
+
+/* discoverModal: hint paragraph */
+.dkg-discover-hint {
+  color: var(--text-muted);
+  font-size: 0.85em;
+  margin: 0 0 10px;
+}
+
+/* discoverModal: search input */
+.dkg-search-input {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+/* discoverModal: loading / count status line */
+.dkg-discover-status {
+  color: var(--text-muted);
+  font-size: 0.85em;
+}
+
+/* wizard.ts: progress indicator wrapper */
+.dkg-progress-bar-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+/* wizard.ts: each step pill (flex column) */
+.dkg-progress-pill {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* wizard.ts: coloured bar segment */
+.dkg-step-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--background-modifier-border);
+}
+.dkg-step-bar.is-active {
+  background: var(--interactive-accent);
+}
+
+/* wizard.ts: step label below the bar */
+.dkg-step-label {
+  font-size: 0.72em;
+  text-align: center;
+  color: var(--text-muted);
+}
+.dkg-step-label.is-active {
+  color: var(--text-normal);
+}
+
+/* wizard.ts: footer row (back/next buttons) */
+.dkg-wizard-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+  padding-top: 12px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+.dkg-wizard-footer.end {
+  justify-content: flex-end;
+}
+
+/* wizard.ts: ghost-style back/skip button */
+.dkg-ghost-btn {
+  background: none;
+  box-shadow: none;
+  color: var(--text-muted);
+}
+
+/* wizard.ts: info box (vault name + project name) */
+.dkg-info-box {
+  background: var(--background-secondary);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 12px 0;
+  font-size: 0.9em;
+  line-height: 1.8;
+}
+
+/* wizard.ts: status line below the info box */
+.dkg-wizard-status {
+  min-height: 1.4em;
+  font-size: 0.9em;
+  color: var(--text-muted);
+}
+
+/* settings.ts: "linked" status card */
+.dkg-status-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  background: var(--background-secondary);
+  border-radius: 8px;
+  border-left: 3px solid var(--interactive-accent);
+  padding: 12px 16px;
+  margin: 4px 0 16px;
+}
+
+/* settings.ts: left column inside the status card */
+.dkg-status-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* settings.ts: a single label/value row inside the status card */
+.dkg-status-card-row {
+  display: flex;
+  gap: 10px;
+  font-size: 0.88em;
+  line-height: 1.4;
+}
+
+/* settings.ts: the label cell in a status-card row */
+.dkg-status-card-label {
+  color: var(--text-muted);
+  min-width: 80px;
+}
+
+/* settings.ts: button group on the right of the status card */
+.dkg-status-card-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+/* settings.ts: smaller action button inside status card */
+.dkg-card-btn-sm {
+  font-size: 0.85em;
+}
+
+/* settings.ts: ghost-style reconfigure button inside status card */
+.dkg-card-btn-ghost {
+  background: none;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: 0.85em;
+  padding: 0;
+}
+
+/* settings.ts: Advanced <details> element */
+.dkg-advanced-details {
+  margin-top: 28px;
+}
+
+/* settings.ts: Advanced <summary> element */
+.dkg-advanced-summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.88em;
+  user-select: none;
+  list-style: none;
+}
+
+/* settings.ts: content div inside <details> */
+.dkg-advanced-body {
+  margin-top: 8px;
 }
