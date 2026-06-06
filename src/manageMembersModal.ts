@@ -1,10 +1,10 @@
 import { Modal, Notice, Setting } from "obsidian";
-import type OriginTrailSharedMemoryPlugin from "./main";
+import type OriginTrailDkgPlugin from "./main";
 import { errorMessage } from "./utils";
 
 export class ManageMembersModal extends Modal {
   constructor(
-    private readonly plugin: OriginTrailSharedMemoryPlugin,
+    private readonly plugin: OriginTrailDkgPlugin,
     private readonly contextGraphId: string,
     private readonly projectName: string,
     private readonly curated?: boolean
@@ -41,22 +41,21 @@ export class ManageMembersModal extends Modal {
 
     // ── Invite code ───────────────────────────────────────────────────────────
     contentEl.createEl("h3", { text: "Invite code" });
-    const desc = contentEl.createEl("p", {
+    contentEl.createEl("p", {
+      cls: "dkg-desc-muted",
       text: "Share this code with teammates. They paste it into “Join shared project”, then their request appears below for you to approve.",
     });
-    desc.style.cssText = "color: var(--text-muted); font-size: 0.85em; margin: 0 0 8px;";
 
     if (this.curated === false) {
       this.renderInviteCode(contentEl, this.contextGraphId);
     } else if (myPeerId) {
       this.renderInviteCode(contentEl, `${this.contextGraphId}\n${myPeerId}`);
     } else {
-      contentEl.createEl("p", { text: "Could not load invite code." }).style.color = "var(--color-red)";
+      contentEl.createEl("p", { cls: "dkg-status-error", text: "Could not load invite code." });
     }
 
     // ── Load members + join requests ──────────────────────────────────────────
-    const loadingEl = contentEl.createEl("p", { text: "Loading members…" });
-    loadingEl.style.color = "var(--text-muted)";
+    const loadingEl = contentEl.createEl("p", { cls: "dkg-text-muted", text: "Loading members…" });
 
     let participants: string[] = [];
     let joinRequests: Array<Record<string, unknown>> = [];
@@ -67,7 +66,8 @@ export class ManageMembersModal extends Modal {
       ]);
     } catch (err) {
       loadingEl.setText(`Failed to load: ${errorMessage(err)}`);
-      loadingEl.style.color = "var(--color-red)";
+      loadingEl.addClass("dkg-status-error");
+      loadingEl.removeClass("dkg-text-muted");
       return;
     }
     loadingEl.remove();
@@ -101,8 +101,7 @@ export class ManageMembersModal extends Modal {
     // ── Current members ───────────────────────────────────────────────────────
     contentEl.createEl("h3", { text: "Current members" });
     if (participants.length === 0) {
-      contentEl.createEl("p", { text: "No members yet. Share the invite code above." }).style.color =
-        "var(--text-muted)";
+      contentEl.createEl("p", { cls: "dkg-text-muted", text: "No members yet. Share the invite code above." });
       return;
     }
     for (const addr of participants) {
@@ -130,10 +129,7 @@ export class ManageMembersModal extends Modal {
   }
 
   private renderInviteCode(container: HTMLElement, code: string): void {
-    const codeEl = container.createEl("code");
-    codeEl.style.cssText =
-      "display: block; padding: 10px; background: var(--background-secondary);" +
-      " border-radius: 6px; word-break: break-all; margin: 8px 0; font-size: 0.82em; white-space: pre-wrap;";
+    const codeEl = container.createEl("code", { cls: "dkg-code-block" });
     codeEl.setText(code);
     new Setting(container).addButton((btn) =>
       btn

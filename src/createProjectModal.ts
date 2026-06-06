@@ -1,20 +1,16 @@
 import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
-import type OriginTrailSharedMemoryPlugin from "./main";
+import type OriginTrailDkgPlugin from "./main";
 import { slugifyContextGraphId } from "./identity";
 import { errorMessage } from "./utils";
-
-type Step = "form" | "created";
 
 export class CreateProjectModal extends Modal {
   private name = "";
   private mode: "curated" | "open" = "curated";
-  private step: Step = "form";
   private inviteCode = "";
-  private cgId = "";
   private cgName = "";
 
   constructor(
-    private readonly plugin: OriginTrailSharedMemoryPlugin,
+    private readonly plugin: OriginTrailDkgPlugin,
     private readonly onDone?: () => void
   ) {
     super(plugin.app);
@@ -75,10 +71,11 @@ export class CreateProjectModal extends Modal {
       const identity = await client.getIdentity();
       const cgId = slugifyContextGraphId(this.name);
 
+      // Curated: private allowlist + curated write. Open: public subscribe + open write.
       const createFn =
         this.mode === "curated"
-          ? () => client.createCuratedContextGraph(cgId, this.name)
-          : () => client.createContextGraph(cgId, this.name);
+          ? () => client.createContextGraph(cgId, this.name, { accessPolicy: 1, publishPolicy: 0 })
+          : () => client.createContextGraph(cgId, this.name, { accessPolicy: 0, publishPolicy: 1 });
 
       try {
         await createFn();
@@ -89,7 +86,6 @@ export class CreateProjectModal extends Modal {
 
       this.inviteCode = this.mode === "curated" ? `${cgId}\n${identity.peerId}` : cgId;
 
-      this.cgId = cgId;
       this.cgName = this.name;
 
       const already = this.plugin.settings.subscribedContextGraphs.find((c) => c.id === cgId);
@@ -103,7 +99,6 @@ export class CreateProjectModal extends Modal {
         await this.plugin.saveSettings();
       }
 
-      this.step = "created";
       this.renderCreated();
       this.onDone?.();
     } catch (err) {
@@ -120,10 +115,7 @@ export class CreateProjectModal extends Modal {
       text: `"${this.cgName}" is ready. Share the invite code below with teammates so they can join.`,
     });
 
-    const codeEl = contentEl.createEl("code");
-    codeEl.style.cssText =
-      "display: block; padding: 10px; background: var(--background-secondary);" +
-      " border-radius: 6px; word-break: break-all; margin: 8px 0; font-size: 0.82em; white-space: pre-wrap;";
+    const codeEl = contentEl.createEl("code", { cls: "dkg-code-block" });
     codeEl.setText(this.inviteCode);
 
     new Setting(contentEl)

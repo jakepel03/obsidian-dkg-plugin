@@ -1,17 +1,15 @@
 import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
-import type OriginTrailSharedMemoryPlugin from "./main";
-import { errorMessage } from "./utils";
-
-type Step = "invite" | "pending" | "subscribing" | "done";
+import type OriginTrailDkgPlugin from "./main";
+import type { DkgClient } from "./dkgClient";
+import { errorMessage, parseInviteCode, sleep } from "./utils";
 
 export class JoinProjectModal extends Modal {
   private inviteCode = "";
-  private step: Step = "invite";
   private cgId = "";
   private pendingAgentAddress = "";
 
   constructor(
-    private readonly plugin: OriginTrailSharedMemoryPlugin,
+    private readonly plugin: OriginTrailDkgPlugin,
     private readonly onDone?: () => void
   ) {
     super(plugin.app);
@@ -33,7 +31,7 @@ export class JoinProjectModal extends Modal {
 
     new Setting(contentEl).setName("Invite code").addTextArea((text) => {
       text.inputEl.rows = 3;
-      text.inputEl.style.cssText = "width: 100%; font-family: var(--font-monospace); font-size: 0.85em;";
+      text.inputEl.addClass("dkg-invite-input");
       text.setPlaceholder("project-id\ncuratorPeerId").onChange((v) => (this.inviteCode = v.trim()));
     });
 
@@ -53,9 +51,7 @@ export class JoinProjectModal extends Modal {
 
     btn.setButtonText("Connecting…").setDisabled(true);
 
-    const parts = this.inviteCode.split("\n");
-    const cgId = parts[0].trim();
-    const curatorPeerId = parts[1]?.trim() ?? "";
+    const { cgId, curatorPeerId } = parseInviteCode(this.inviteCode);
 
     try {
       const client = this.plugin.client();
@@ -76,7 +72,6 @@ export class JoinProjectModal extends Modal {
         if (result?.alreadyMember || result?.status === "already-member") {
           await this.subscribe();
         } else {
-          this.step = "pending";
           this.renderPending();
         }
       } else {
@@ -85,7 +80,6 @@ export class JoinProjectModal extends Modal {
     } catch (err) {
       const msg = errorMessage(err);
       if (/403|not.*allowlist|not.*allow/i.test(msg)) {
-        this.step = "pending";
         this.renderPending();
       } else {
         new Notice(`Join failed: ${msg}`, 10000);
@@ -102,13 +96,12 @@ export class JoinProjectModal extends Modal {
       text: "Your join request was sent to the curator. Once they approve, click the button below to subscribe.",
     });
 
-    const hint = contentEl.createEl("p", { text: "Share your agent address with the curator if they ask for it:" });
-    hint.style.cssText = "margin-top: 12px; font-size: 0.9em; color: var(--text-muted);";
+    contentEl.createEl("p", {
+      cls: "dkg-pending-hint",
+      text: "Share your agent address with the curator if they ask for it:",
+    });
 
-    const addrEl = contentEl.createEl("code");
-    addrEl.style.cssText =
-      "display: block; padding: 10px; background: var(--background-secondary);" +
-      " border-radius: 6px; word-break: break-all; margin: 4px 0 16px; font-size: 0.85em;";
+    const addrEl = contentEl.createEl("code", { cls: "dkg-address-block" });
     addrEl.setText(this.pendingAgentAddress);
 
     new Setting(contentEl)
@@ -136,7 +129,6 @@ export class JoinProjectModal extends Modal {
   }
 
   private async subscribe() {
-    this.step = "subscribing";
     this.renderSubscribing();
 
     const client = this.plugin.client();
@@ -152,16 +144,18 @@ export class JoinProjectModal extends Modal {
       await this.plugin.saveSettings();
     }
 
-    this.step = "done";
     this.renderDone();
     this.onDone?.();
   }
 
-  private async pollCatchup(client: ReturnType<OriginTrailSharedMemoryPlugin["client"]>) {
+  /** Poll the catch-up job to completion without re-triggering the subscribe. */
+  private async pollCatchup(client: DkgClient) {
     for (let i = 0; i < 60; i++) {
       await sleep(2000);
-      const status = await client.subscribeToContextGraph(this.cgId);
-      const s = status?.catchup?.status;
+      const status = await client.catchupStatus(this.cgId);
+      // null = no job tracked (already finished and pruned) → stop polling.
+      if (!status) break;
+      const s = status.status;
       if (s === "done" || s === "failed" || s === "denied" || s === "unreachable") break;
     }
   }
@@ -189,8 +183,4 @@ export class JoinProjectModal extends Modal {
         .onClick(() => this.close())
     );
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
 }

@@ -22,7 +22,7 @@ export interface OriginTrailSettings {
   autoSync: boolean;
   syncDebounceMs: number;
   vaultId: string;
-  hasSeenPowerUpPrompt: boolean;
+  hasCompletedSetup: boolean;
   subscribedContextGraphs: SubscribedContextGraph[];
   /** Folder → project rules; notes under a folder are shared there automatically. */
   folderDestinations: FolderDestination[];
@@ -35,7 +35,7 @@ export const DEFAULT_SETTINGS: OriginTrailSettings = {
   autoSync: true,
   syncDebounceMs: 1500,
   vaultId: "",
-  hasSeenPowerUpPrompt: false,
+  hasCompletedSetup: false,
   subscribedContextGraphs: [],
   folderDestinations: [],
 };
@@ -45,8 +45,32 @@ export type RequestTransport = (request: RequestUrlParam) => Promise<RequestUrlR
 export interface ContextGraphSummary {
   id: string;
   name: string;
-  subscribed?: boolean;
-  synced?: boolean;
+}
+
+/** Identity of the local DKG node's agent (from `/api/agent/identity`). */
+export interface AgentIdentity {
+  agentAddress: string;
+  peerId: string;
+  name: string;
+  agentDid: string;
+}
+
+/** Catch-up (replication) job status for a subscribed context graph. */
+export interface CatchupStatus {
+  status?: "pending" | "running" | "done" | "failed" | "denied" | "unreachable" | string;
+}
+
+/** Response from importing a Markdown file into an assertion. */
+export interface ImportResult {
+  extraction?: { status?: string; tripleCount?: number };
+  fileHash?: string;
+}
+
+/** Response from polling an assertion's extraction status. */
+export interface ExtractionStatusResponse {
+  status?: string;
+  tripleCount?: number;
+  extraction?: { status?: string; tripleCount?: number };
 }
 
 export interface SyncResult {

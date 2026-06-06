@@ -37,7 +37,7 @@ export class SetupWizardModal extends Modal {
 
   onClose() {
     this.contentEl.empty();
-    this.plugin.settings.hasSeenPowerUpPrompt = true;
+    this.plugin.settings.hasCompletedSetup = true;
     if (this.step < 3) {
       // Wizard didn't complete — discard any credential edits from step 1
       this.plugin.settings.dkgNodeUrl = this.initialUrl;
@@ -60,42 +60,30 @@ export class SetupWizardModal extends Modal {
   private renderProgressIndicator() {
     const { contentEl } = this;
     const steps = ["Connect", "Import", "Done"];
-    const wrapper = contentEl.createDiv();
-    wrapper.style.cssText = "display: flex; gap: 8px; margin-bottom: 20px;";
+    const wrapper = contentEl.createDiv({ cls: "dkg-progress-bar-row" });
 
     steps.forEach((label, i) => {
       const stepNum = (i + 1) as 1 | 2 | 3;
       const isActive = stepNum === this.step;
       const isDone = stepNum < this.step;
 
-      const pill = wrapper.createDiv();
-      pill.style.cssText = "flex: 1; display: flex; flex-direction: column; gap: 4px;";
+      const pill = wrapper.createDiv({ cls: "dkg-progress-pill" });
 
-      const bar = pill.createDiv();
-      bar.style.cssText =
-        "height: 3px; border-radius: 2px; background: " +
-        (isActive || isDone ? "var(--interactive-accent)" : "var(--background-modifier-border)") +
-        ";";
+      const bar = pill.createDiv({ cls: "dkg-step-bar" });
+      if (isActive || isDone) bar.addClass("is-active");
 
-      const lbl = pill.createEl("span", { text: label });
-      lbl.style.cssText =
-        "font-size: 0.72em; text-align: center; color: " +
-        (isActive ? "var(--text-normal)" : "var(--text-muted)") +
-        ";";
+      const lbl = pill.createEl("span", { cls: "dkg-step-label", text: label });
+      if (isActive) lbl.addClass("is-active");
     });
   }
 
   private wizardFooter(el: HTMLElement): HTMLElement {
-    const footer = el.createDiv();
-    footer.style.cssText =
-      "display: flex; justify-content: space-between; align-items: center;" +
-      " margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--background-modifier-border);";
-    return footer;
+    return el.createDiv({ cls: "dkg-wizard-footer" });
   }
 
   private ghostButton(container: HTMLElement, label: string): ButtonComponent {
     const btn = new ButtonComponent(container).setButtonText(label);
-    btn.buttonEl.style.cssText = "background: none; box-shadow: none; color: var(--text-muted);";
+    btn.buttonEl.addClass("dkg-ghost-btn");
     return btn;
   }
 
@@ -114,7 +102,7 @@ export class SetupWizardModal extends Modal {
       refs.nextBtn?.setDisabled(true);
       if (refs.testSetting) {
         refs.testSetting.setDesc(IDLE_DESC);
-        refs.testSetting.descEl.style.color = "";
+        refs.testSetting.descEl.removeClasses(["dkg-status-ok", "dkg-status-error"]);
       }
     };
 
@@ -177,15 +165,11 @@ export class SetupWizardModal extends Modal {
       text: "This links a DKG project to your vault and imports all your Markdown notes into it. Everything stays private to your own node until you choose to share a note to a project.",
     });
 
-    const infoBox = contentEl.createDiv();
-    infoBox.style.cssText =
-      "background: var(--background-secondary); border-radius: 6px;" +
-      " padding: 10px 14px; margin: 12px 0; font-size: 0.9em; line-height: 1.8;";
+    const infoBox = contentEl.createDiv({ cls: "dkg-info-box" });
     infoBox.createEl("div", { text: `Vault: ${vaultName}` });
     infoBox.createEl("div", { text: `DKG Project: ${contextGraphId}` });
 
-    const statusEl = contentEl.createEl("p", { text: "" });
-    statusEl.style.cssText = "min-height: 1.4em; font-size: 0.9em; color: var(--text-muted);";
+    const statusEl = contentEl.createEl("p", { cls: "dkg-wizard-status", text: "" });
 
     // Footer: [← Back] ........... [Import notes]
     const footer = this.wizardFooter(contentEl);
@@ -205,7 +189,7 @@ export class SetupWizardModal extends Modal {
         powerBtn.setDisabled(true);
         powerBtn.setButtonText("Working...");
         backBtn.setDisabled(true);
-        statusEl.style.color = "var(--text-muted)";
+        statusEl.removeClass("dkg-status-error");
         try {
           this.syncedCount = await this.plugin.createProjectFromVaultAndSyncNotes({
             onStatus: (msg) => statusEl.setText(msg),
@@ -215,7 +199,7 @@ export class SetupWizardModal extends Modal {
           this.renderStep();
         } catch (err) {
           statusEl.setText(`Failed: ${errorMessage(err)}`);
-          statusEl.style.color = "var(--color-red)";
+          statusEl.addClass("dkg-status-error");
           powerBtn.setDisabled(false);
           powerBtn.setButtonText("Retry");
           backBtn.setDisabled(false);
@@ -237,7 +221,7 @@ export class SetupWizardModal extends Modal {
     });
 
     const footer = this.wizardFooter(contentEl);
-    footer.style.justifyContent = "flex-end";
+    footer.addClass("end");
     new ButtonComponent(footer)
       .setButtonText("Close")
       .setCta()

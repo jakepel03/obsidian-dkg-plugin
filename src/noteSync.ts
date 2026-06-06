@@ -2,6 +2,7 @@ import type { App, TFile } from "obsidian";
 import type { FolderDestination, SubscribedContextGraph, SyncResult } from "./types";
 import type { DkgClient } from "./dkgClient";
 import { makeAssertionName, makeAssertionUri } from "./identity";
+import { sleep } from "./utils";
 
 const SCHEMA_NAME = "http://schema.org/name";
 const SCHEMA_MENTIONS = "http://schema.org/mentions";
@@ -98,15 +99,19 @@ export async function syncMarkdownFile(
 ): Promise<SyncResult> {
   const content = await app.vault.read(file);
   const frontmatter = app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
-  const { contextGraphId, promote, warning } = resolveRouting(file.path, frontmatter, opts);
+  const { contextGraphId, promote, warning: routingWarning } = resolveRouting(file.path, frontmatter, opts);
 
   const assertionName = await makeAssertionName(opts.vaultId, file.path);
-  const imported: any = await client.importMarkdown(contextGraphId, assertionName, file.name, content);
+  const imported = await client.importMarkdown(contextGraphId, assertionName, file.name, content);
 
-  let tripleCount = imported?.extraction?.tripleCount;
-  if (imported?.extraction?.status === "in_progress") {
-    const status = await waitForExtraction(client, contextGraphId, assertionName);
-    tripleCount = status?.tripleCount ?? status?.extraction?.tripleCount ?? tripleCount;
+  let tripleCount = imported.extraction?.tripleCount;
+  let extractionWarning: string | undefined;
+  if (imported.extraction?.status === "in_progress") {
+    const ext = await waitForExtraction(client, contextGraphId, assertionName);
+    tripleCount = ext.tripleCount ?? tripleCount;
+    if (ext.timedOut) {
+      extractionWarning = "Extraction is still running on the node; the triple count may be incomplete.";
+    }
   }
 
   // Add the links + title the daemon's per-file extraction can't infer, into
@@ -117,6 +122,8 @@ export async function syncMarkdownFile(
   } catch (error) {
     console.warn(`[DKG] link/name enrichment failed for ${file.path}:`, error);
   }
+
+  const warning = [routingWarning, extractionWarning].filter(Boolean).join(" ") || undefined;
 
   if (promote) {
     await client.promoteAssertion(contextGraphId, assertionName);
@@ -193,16 +200,25 @@ export async function syncAllMarkdownFiles(
   return results;
 }
 
-async function waitForExtraction(client: DkgClient, contextGraphId: string, assertionName: string): Promise<any> {
+interface ExtractionResult {
+  status?: string;
+  tripleCount?: number;
+  /** True when the node never reported a terminal state within the poll window. */
+  timedOut: boolean;
+}
+
+async function waitForExtraction(
+  client: DkgClient,
+  contextGraphId: string,
+  assertionName: string
+): Promise<ExtractionResult> {
   for (let attempt = 0; attempt < 20; attempt++) {
     await sleep(750);
     const status = await client.extractionStatus(contextGraphId, assertionName);
-    const state = status?.status ?? status?.extraction?.status;
-    if (state === "completed" || state === "failed" || state === "skipped") return status;
+    const state = status.status ?? status.extraction?.status;
+    if (state === "completed" || state === "failed" || state === "skipped") {
+      return { status: state, tripleCount: status.tripleCount ?? status.extraction?.tripleCount, timedOut: false };
+    }
   }
-  return {};
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return { timedOut: true };
 }
