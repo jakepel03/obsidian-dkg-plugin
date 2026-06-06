@@ -152,7 +152,7 @@ export class DkgDashboardView extends ItemView {
       tooltip: "Re-import every note in this vault into your DKG node.",
       onClick: async (b) => {
         await runWithFeedback(b, "Syncing…", async () => {
-          const n = await this.plugin.syncWholeVault();
+          const n = await this.plugin.sync.syncWholeVault();
           new Notice(`DKG: synced ${n} notes.`);
         });
         this.render();
@@ -179,7 +179,7 @@ export class DkgDashboardView extends ItemView {
 
     card.createDiv({ cls: "dkg-note-title", text: file.basename });
 
-    const dest = this.plugin.noteDestination(file);
+    const dest = this.plugin.sync.noteDestination(file);
     kv(
       card,
       "Status",
@@ -191,7 +191,7 @@ export class DkgDashboardView extends ItemView {
       }
     );
 
-    const last = this.plugin.lastSync.get(file.path);
+    const last = this.plugin.sync.lastSync.get(file.path);
     if (last) {
       const triples = last.tripleCount != null ? `${last.tripleCount} triples · ` : "";
       kv(card, "Last sync", `${triples}${relativeTime(last.at)}`, {
@@ -210,7 +210,7 @@ export class DkgDashboardView extends ItemView {
       tooltip: "Push this note to your DKG node now.",
       onClick: async (b) => {
         await runWithFeedback(b, "Syncing…", async () => {
-          await this.plugin.syncFile(file);
+          await this.plugin.sync.syncFile(file);
         });
         this.renderThisNote(el);
       },

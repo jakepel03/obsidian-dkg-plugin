@@ -30,6 +30,6 @@ export class ShareNoteModal extends FuzzySuggestModal<SubscribedContextGraph> {
       delete fm.shared;
     });
     new Notice(`Publishing "${this.file.basename}" to ${cg.name || cg.id}…`);
-    await this.plugin.syncFile(this.file);
+    await this.plugin.sync.syncFile(this.file);
   }
 }
