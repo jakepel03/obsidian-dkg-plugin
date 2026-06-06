@@ -1,5 +1,5 @@
 import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
-import type OriginTrailSharedMemoryPlugin from "./main";
+import type OriginTrailDkgPlugin from "./main";
 import type { DkgClient } from "./dkgClient";
 import { errorMessage, parseInviteCode, sleep } from "./utils";
 
@@ -9,7 +9,7 @@ export class JoinProjectModal extends Modal {
   private pendingAgentAddress = "";
 
   constructor(
-    private readonly plugin: OriginTrailSharedMemoryPlugin,
+    private readonly plugin: OriginTrailDkgPlugin,
     private readonly onDone?: () => void
   ) {
     super(plugin.app);

@@ -37,7 +37,7 @@ export class SetupWizardModal extends Modal {
 
   onClose() {
     this.contentEl.empty();
-    this.plugin.settings.hasSeenPowerUpPrompt = true;
+    this.plugin.settings.hasCompletedSetup = true;
     if (this.step < 3) {
       // Wizard didn't complete — discard any credential edits from step 1
       this.plugin.settings.dkgNodeUrl = this.initialUrl;

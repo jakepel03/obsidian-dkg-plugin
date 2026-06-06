@@ -12,7 +12,7 @@ import { DiscoverModal } from "./discoverModal";
 import { DkgDashboardView, DKG_DASHBOARD_VIEW } from "./dashboardView";
 import { errorMessage } from "./utils";
 
-export default class OriginTrailSharedMemoryPlugin extends Plugin {
+export default class OriginTrailDkgPlugin extends Plugin {
   settings!: OriginTrailSettings;
   private statusBarEl!: HTMLElement;
   private pendingSyncTimers = new Map<string, number>();
@@ -27,7 +27,7 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     await this.loadSettings();
 
     this.statusBarEl = this.addStatusBarItem();
-    this.statusBarEl.addClass("origintrail-sm-status");
+    this.statusBarEl.addClass("dkg-statusbar");
     this.updateStatusBar();
 
     this.addSettingTab(new OriginTrailSettingTab(this.app, this));
@@ -47,13 +47,13 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     });
 
     this.addCommand({
-      id: "create-project-from-current-vault-and-sync-notes",
+      id: "connect-vault",
       name: "Connect this vault to OriginTrail DKG",
       callback: () => new SetupWizardModal(this).open(),
     });
 
     this.addCommand({
-      id: "sync-current-note-to-dkg-working-memory",
+      id: "sync-current-note",
       name: "Sync current note to DKG",
       checkCallback: (checking) => {
         const file = this.app.workspace.getActiveFile();
@@ -128,7 +128,7 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
           if (file instanceof TFile) void this.handleDelete(file);
         })
       );
-      this.maybeShowPowerUpPrompt();
+      this.maybeShowSetupPrompt();
     });
   }
 
@@ -139,14 +139,22 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-    // Legacy "promote everything" switch was replaced by explicit per-note /
-    // per-folder sharing; drop it so it stops being persisted.
-    delete (this.settings as unknown as Record<string, unknown>).autoPromote;
-    if (!this.settings.vaultId) {
-      this.settings.vaultId = makeVaultId();
-      await this.saveSettings();
+    const stored = ((await this.loadData()) ?? {}) as Record<string, unknown>;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, stored);
+
+    // Migrate legacy keys, then drop them so they stop being persisted:
+    //  - `autoPromote`: the global "promote everything" switch was replaced by
+    //    explicit per-note / per-folder sharing.
+    //  - `hasSeenPowerUpPrompt` → `hasCompletedSetup` (renamed).
+    const legacy = this.settings as unknown as Record<string, unknown>;
+    delete legacy.autoPromote;
+    if (stored.hasSeenPowerUpPrompt !== undefined && stored.hasCompletedSetup === undefined) {
+      this.settings.hasCompletedSetup = Boolean(stored.hasSeenPowerUpPrompt);
     }
+    delete legacy.hasSeenPowerUpPrompt;
+
+    if (!this.settings.vaultId) this.settings.vaultId = makeVaultId();
+    await this.saveSettings();
   }
 
   async saveSettings() {
@@ -259,7 +267,7 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     const graph = await client.ensureContextGraph(contextGraphId, vaultName);
     this.settings.defaultContextGraphId = graph.id || contextGraphId;
     this.settings.autoSync = true;
-    this.settings.hasSeenPowerUpPrompt = true;
+    this.settings.hasCompletedSetup = true;
     await this.saveSettings();
     this.updateStatusBar();
 
@@ -412,8 +420,8 @@ export default class OriginTrailSharedMemoryPlugin extends Plugin {
     }
   }
 
-  private maybeShowPowerUpPrompt() {
-    if (this.settings.defaultContextGraphId || this.settings.hasSeenPowerUpPrompt) return;
+  private maybeShowSetupPrompt() {
+    if (this.settings.defaultContextGraphId || this.settings.hasCompletedSetup) return;
     new SetupWizardModal(this).open();
   }
 }

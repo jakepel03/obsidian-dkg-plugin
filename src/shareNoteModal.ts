@@ -1,5 +1,5 @@
 import { FuzzySuggestModal, Notice, type TFile } from "obsidian";
-import type OriginTrailSharedMemoryPlugin from "./main";
+import type OriginTrailDkgPlugin from "./main";
 import type { SubscribedContextGraph } from "./types";
 
 /**
@@ -9,7 +9,7 @@ import type { SubscribedContextGraph } from "./types";
  */
 export class ShareNoteModal extends FuzzySuggestModal<SubscribedContextGraph> {
   constructor(
-    private readonly plugin: OriginTrailSharedMemoryPlugin,
+    private readonly plugin: OriginTrailDkgPlugin,
     private readonly file: TFile
   ) {
     super(plugin.app);

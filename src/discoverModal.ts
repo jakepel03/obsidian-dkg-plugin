@@ -1,5 +1,5 @@
 import { Modal, Notice, Setting, TFile, TFolder } from "obsidian";
-import type OriginTrailSharedMemoryPlugin from "./main";
+import type OriginTrailDkgPlugin from "./main";
 import { errorMessage } from "./utils";
 
 interface DiscoveredNote {
@@ -31,7 +31,7 @@ export class DiscoverModal extends Modal {
   private listEl: HTMLElement | null = null;
   private statusEl: HTMLElement | null = null;
 
-  constructor(private readonly plugin: OriginTrailSharedMemoryPlugin) {
+  constructor(private readonly plugin: OriginTrailDkgPlugin) {
     super(plugin.app);
   }
 

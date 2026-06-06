@@ -22,7 +22,7 @@ export interface OriginTrailSettings {
   autoSync: boolean;
   syncDebounceMs: number;
   vaultId: string;
-  hasSeenPowerUpPrompt: boolean;
+  hasCompletedSetup: boolean;
   subscribedContextGraphs: SubscribedContextGraph[];
   /** Folder → project rules; notes under a folder are shared there automatically. */
   folderDestinations: FolderDestination[];
@@ -35,7 +35,7 @@ export const DEFAULT_SETTINGS: OriginTrailSettings = {
   autoSync: true,
   syncDebounceMs: 1500,
   vaultId: "",
-  hasSeenPowerUpPrompt: false,
+  hasCompletedSetup: false,
   subscribedContextGraphs: [],
   folderDestinations: [],
 };

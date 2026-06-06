@@ -1,10 +1,10 @@
 import { Modal, Notice, Setting } from "obsidian";
-import type OriginTrailSharedMemoryPlugin from "./main";
+import type OriginTrailDkgPlugin from "./main";
 import { errorMessage } from "./utils";
 
 export class ManageMembersModal extends Modal {
   constructor(
-    private readonly plugin: OriginTrailSharedMemoryPlugin,
+    private readonly plugin: OriginTrailDkgPlugin,
     private readonly contextGraphId: string,
     private readonly projectName: string,
     private readonly curated?: boolean

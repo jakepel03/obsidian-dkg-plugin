@@ -1,5 +1,5 @@
 import { ItemView, Notice, setIcon, setTooltip, WorkspaceLeaf } from "obsidian";
-import type OriginTrailSharedMemoryPlugin from "./main";
+import type OriginTrailDkgPlugin from "./main";
 import { SetupWizardModal } from "./wizard";
 import { CreateProjectModal } from "./createProjectModal";
 import { JoinProjectModal } from "./joinProjectModal";
@@ -39,7 +39,7 @@ export class DkgDashboardView extends ItemView {
 
   constructor(
     leaf: WorkspaceLeaf,
-    private readonly plugin: OriginTrailSharedMemoryPlugin
+    private readonly plugin: OriginTrailDkgPlugin
   ) {
     super(leaf);
   }

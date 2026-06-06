@@ -1,5 +1,5 @@
 import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
-import type OriginTrailSharedMemoryPlugin from "./main";
+import type OriginTrailDkgPlugin from "./main";
 import { slugifyContextGraphId } from "./identity";
 import { errorMessage } from "./utils";
 
@@ -10,7 +10,7 @@ export class CreateProjectModal extends Modal {
   private cgName = "";
 
   constructor(
-    private readonly plugin: OriginTrailSharedMemoryPlugin,
+    private readonly plugin: OriginTrailDkgPlugin,
     private readonly onDone?: () => void
   ) {
     super(plugin.app);

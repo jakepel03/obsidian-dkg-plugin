@@ -1,5 +1,5 @@
 import { App, ButtonComponent, Notice, PluginSettingTab, Setting } from "obsidian";
-import type OriginTrailSharedMemoryPlugin from "./main";
+import type OriginTrailDkgPlugin from "./main";
 import { SetupWizardModal } from "./wizard";
 import { CreateProjectModal } from "./createProjectModal";
 import { JoinProjectModal } from "./joinProjectModal";
@@ -9,7 +9,7 @@ import { runConnectionTest } from "./utils";
 export class OriginTrailSettingTab extends PluginSettingTab {
   constructor(
     app: App,
-    private readonly plugin: OriginTrailSharedMemoryPlugin
+    private readonly plugin: OriginTrailDkgPlugin
   ) {
     super(app, plugin);
   }
