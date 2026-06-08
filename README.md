@@ -1,158 +1,236 @@
+<div align="center">
+
 # OriginTrail DKG for Obsidian
 
-Obsidian plugin for turning an Obsidian vault into an OriginTrail DKG v10 Project and syncing Markdown notes into DKG memory.
+**Turn your Obsidian vault into a verifiable, shareable knowledge graph.**
 
-<img width="1672" height="941" alt="ChatGPT Image May 15, 2026 at 01_19_06 PM" src="https://github.com/user-attachments/assets/3c154fc8-c2de-4f2e-9d3b-13be73e44d02" />
+Sync your Markdown notes into a local [OriginTrail DKG v10](https://github.com/OriginTrail/dkg) node: private by default, with explicit, per-note sharing into collaborative projects.
+
+[![CI](https://github.com/jakepel03/obsidian-dkg-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/jakepel03/obsidian-dkg-plugin/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Obsidian](https://img.shields.io/badge/Obsidian-1.5.0%2B-7c3aed?logo=obsidian&logoColor=white)
+![Status](https://img.shields.io/badge/status-beta-orange)
+
+<img width="820" alt="OriginTrail DKG for Obsidian: graph view with the dashboard panel open" src="docs/images/graph-view-dashboard.png" />
+
+</div>
+
+> [!WARNING]
+> DKG v10 is release-candidate software on testnet. Expect iteration and breaking
+> changes. Use this plugin for testing and demos, not production-critical knowledge.
+
+---
+
+## Table of contents
+
+- [Why use it?](#why-use-it)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Getting started](#getting-started)
+- [How it works](#how-it-works)
+- [Commands](#commands)
+- [Settings](#settings)
+- [Development](#development)
+- [DKG API surface](#dkg-api-surface)
+- [Privacy & safety](#privacy--safety)
+- [Roadmap](#roadmap)
+- [License](#license)
+
+---
 
 ## Why use it?
 
 Obsidian is already one of the best tools for building a personal knowledge base:
-a second brain where notes, ideas, references, and insights compound over time.
+a second brain where notes, ideas, and references compound over time.
 
-The OriginTrail DKG plugin takes that further. It helps turn a
-private second brain into part of a broader, verifiable knowledge network, moving
-from personal memory toward collective intelligence.
+This plugin takes that further. It connects your local-first vault to the
+OriginTrail **Decentralized Knowledge Graph**, so selected knowledge can become
+structured, linked, provenance-aware memory that humans and AI agents can
+discover, verify, and build on together.
 
-> Intelligence is power.
-> Intelligence shared is power multiplied.
+> Intelligence is power. Intelligence shared is power multiplied.
 
-A second brain helps one person remember, connect, and reason with their own
-knowledge. Shared memory helps people, teams, communities, and AI agents build on
-knowledge together.
+You keep writing in Obsidian. The DKG becomes the trust and knowledge-graph layer
+underneath, and you decide, note by note, what stays private and what gets shared.
 
-With OriginTrail's Decentralized Knowledge Graph, selected knowledge from an
-Obsidian vault can become more than isolated notes. It can become structured,
-linked, provenance-aware knowledge that others can discover, verify, and reuse.
+## Features
 
-This enables:
+- 🧠 **Vault → knowledge graph**: every Markdown note is imported into a DKG project named after your vault.
+- 🔒 **Private by default**: notes live only on *your* node until you explicitly share them.
+- 🔁 **Live auto-sync**: edits, creates, renames, and deletes are mirrored to the DKG (debounced, not on every keystroke).
+- 🤝 **Per-note & per-folder sharing**: share an individual note to a project, or route a whole folder to one automatically.
+- 🌐 **Collaborative projects**: create or join shared projects (context graphs) and manage members.
+- 🔎 **Discover**: browse notes others have shared into a project you're subscribed to.
+- 📊 **Dashboard & status bar**: see your project, sync state, and project readiness at a glance.
+- 🪄 **Guided setup**: a 3-step wizard handles connection and the first import.
 
-- **Personal knowledge that can become shared knowledge** - keep your Obsidian
-  workflow local-first, while choosing what knowledge should be published or
-  connected.
-- **Verifiable context for humans and AI agents** - knowledge can carry
-  provenance, making it easier to understand where information came from and why
-  it should be trusted.
-- **Better coordination across teams and communities** - replace scattered
-  documents, messages, and repeated explanations with a reusable knowledge layer.
-- **A bridge between note-taking and decentralized knowledge infrastructure** -
-  Obsidian remains the thinking interface, while OriginTrail provides the trust
-  and knowledge graph layer.
+## Requirements
 
-Traditional note-taking asks: **What do I know?**
+- **[Obsidian](https://obsidian.md/download)** 1.5.0 or newer.
+- A **local OriginTrail DKG v10 node**, up and running and reachable by the plugin (default `http://127.0.0.1:9200`), plus its **auth token**.
 
-Shared memory asks: **What can we know, trust, and build together?**
+Installing and running the node is covered in the **[OriginTrail DKG repo](https://github.com/OriginTrail/dkg)**. Once it's running, grab its base URL and auth token; that's all the plugin needs to connect.
 
-The future of knowledge work is not just better private notes. It is shared,
-verifiable intelligence.
+## Installation
 
+> A Community Plugins / BRAT listing is on the [roadmap](#roadmap). For now, install
+> directly from this repo: the built plugin (`main.js`, `manifest.json`,
+> `styles.css`) is committed and kept current by CI, so **no build step is needed.**
 
-## Start here
+### Option A: one command (recommended)
 
-If you are new to Obsidian, OriginTrail DKG, or both, follow the full beginner journey:
+From a clone of this repo, point `install` at your vault:
 
-[Fresh user journey: Obsidian + OriginTrail DKG](INSTALL.md)
+```bash
+make install VAULT="/path/to/your vault"
+```
 
-That guide covers:
+This copies the plugin into `<vault>/.obsidian/plugins/origintrail-dkg/`. Then enable
+it in Obsidian under **Settings → Community plugins** (turn off Restricted mode if asked).
 
-- installing Obsidian
-- installing and starting OriginTrail DKG v10 from <https://github.com/OriginTrail/dkg>
-- installing this plugin into a vault
-- configuring the DKG connection
-- powering up a vault into a DKG Project
+### Option B: manual
 
+1. Download `main.js`, `manifest.json`, and `styles.css` from this repo.
+2. Copy them into your vault at:
 
-## MVP flow
+   ```text
+   <your vault>/.obsidian/plugins/origintrail-dkg/
+   ```
 
-1. Open or create an Obsidian vault.
-2. Configure the local DKG node URL and auth token in plugin settings.
-3. Run **OriginTrail DKG: Power up current vault with OriginTrail DKG** or click **Power up vault** in settings.
+3. In Obsidian, go to **Settings → Community plugins** and enable **OriginTrail DKG**.
 
-   ![Power up vault prompt in Obsidian](docs/images/power-up-vault-prompt.jpg)
+> If you don't see the plugin, confirm the folder is named exactly `origintrail-dkg`
+> with the three files directly inside it, then fully restart Obsidian.
 
-4. The plugin creates or links a DKG Project using the vault name.
-5. Existing Markdown notes are imported into DKG **Working Memory**.
-6. Optional: enable promotion to **Shared Memory** after the Working Memory path is verified.
+## Getting started
 
-Unlinked vaults show a first-run prompt that offers to power up the vault without automatically ingesting notes before the user opts in.
+The first time you open a vault with the plugin enabled, a **setup wizard** runs
+(you can re-open it any time with the command **Connect this vault to OriginTrail DKG**):
 
-## What a successful cycle looks like
+1. **Connect**: enter your DKG node URL and auth token, then **Test** the connection.
+2. **Import**: links a DKG project to your vault and imports all existing Markdown notes into it.
+3. **Done**: auto-sync is now on. Everything is private to your node until you share a note.
 
-After the vault is powered up, the plugin completes a full Obsidian-to-DKG cycle:
+<div align="center">
+<img width="760" alt="Setup wizard: connecting the vault to a DKG node" src="docs/images/setup-wizard.png" />
+</div>
 
-1. **A DKG Project is created or linked from the vault name.**
-   If the Obsidian vault is called `Research Notes`, the plugin creates or connects to a DKG Context Graph/Project using that name.
-2. **The vault becomes linked to that Context Graph.**
-   The selected Context Graph ID is stored in the vault's local plugin settings, so future syncs know exactly where the vault belongs.
-3. **Existing Markdown notes are imported.**
-   Every Markdown file in the vault, except Obsidian internals and trash folders, is sent to DKG Working Memory as an assertion.
-4. **DKG extraction runs for each note.**
-   The DKG node processes the Markdown and turns the note content into graph memory inside the created Context Graph.
-5. **The user gets a completion notice.**
-   When the cycle finishes, Obsidian reports how many notes were synced and whether they stayed in Working Memory or were promoted to Shared Memory.
+## How it works
 
-At the end of this cycle, the Obsidian vault and the DKG Context Graph are connected: the vault remains the writing interface, while the DKG Project becomes the shared memory layer for that vault's knowledge.
+**Your vault, your graph.** Powering up creates a DKG project (context graph) named
+after your vault and imports your notes into it. This graph is private to your own node.
 
-## How edits keep the DKG updated
+<div align="center">
+<img width="760" alt="Dashboard panel showing a note's private sync status" src="docs/images/dashboard-panel.png" />
+</div>
 
-Once the vault is powered up, auto-sync is enabled for that vault.
+**Edits keep it fresh.** Once auto-sync is on, saving a note re-imports it after a short
+debounce, so the graph tracks your latest writing without syncing on every keystroke.
 
-- When a Markdown note is edited and saved, Obsidian emits a file-change event.
-- The plugin waits briefly using a debounce, so it does not sync on every keystroke.
-- The changed note is imported again into the same DKG Context Graph created for the vault.
-- Each synced note version gets a content-aware assertion name derived from the vault ID, note path, note content, and sync timestamp.
-- By default, updates go to **Working Memory** first. If Shared Memory promotion is enabled, the assertion is also promoted to **Shared Memory**.
+**Sharing is explicit.** Nothing leaves your node automatically. You choose what to share:
 
-- <img width="1280" height="656" alt="photo_2026-05-15_17-22-38" src="https://github.com/user-attachments/assets/2f4e5614-28b5-41b2-9e5b-f2e1dcde4bff" />
+- **Per note**: *Share current note to a project* writes a `shared_to` marker in the note's frontmatter and pushes a copy to that project.
+- **Per folder**: define folder → project rules so notes under a folder are shared to a project automatically.
+- **Stop anytime**: *Stop sharing current note* makes it private again.
 
+**Collaborate.** Create a project to share into, or join someone else's. Subscribed
+projects show their sync/readiness state, and **Discover** lets you browse notes others
+have shared into a project you've joined.
 
-This means every saved edit can become a new memory update in the vault's DKG Context Graph. Obsidian stays local-first and comfortable for writing, while OriginTrail DKG keeps receiving the latest knowledge from the vault.
+<div align="center">
+<img width="760" alt="Creating a shared project to publish notes into" src="docs/images/create-shared-project.png" />
+</div>
 
-## Sharing access to the Context Graph
+## Commands
 
-After the vault has been powered up and synced, the created DKG Context Graph can become a shared knowledge space.
+All commands are available from the command palette under the **OriginTrail DKG** prefix.
 
-The Obsidian vault stays local to the user. The DKG Context Graph is the shareable project layer created from that vault. From there, the owner can invite or grant access to other people, teams, apps, or AI agents so they can work with the same trusted context.
+| Command | What it does |
+| --- | --- |
+| Open DKG dashboard | Open the dashboard panel in the right sidebar (also the ribbon icon). |
+| Test DKG connection | Verify the plugin can reach your node with the current credentials. |
+| Connect this vault to OriginTrail DKG | Launch the 3-step setup wizard. |
+| Sync current note to DKG | Manually sync the active note. |
+| Create shared DKG project | Create a new shared project (context graph). |
+| Join shared DKG project | Join / subscribe to an existing project. |
+| Discover shared notes from a project | Browse notes shared into a subscribed project. |
+| Share current note to a project | Share the active note to a chosen project. |
+| Stop sharing current note | Make the active note private again. |
 
-In practice, this means:
+## Settings
 
-- the user keeps writing and editing in their own Obsidian vault
-- the DKG Context Graph becomes the project space that can be shared
-- collaborators can be given access to the Context Graph instead of receiving copied notes manually
-- promoted knowledge can become **Shared Memory** for that project
-- teams and agents can build on the same continuously updated context as the vault evolves
+Open **Settings → OriginTrail DKG**:
 
-- <img width="1280" height="659" alt="photo_2026-05-15_17-22-38 (2)" src="https://github.com/user-attachments/assets/3a97a73c-edf6-4966-b0aa-070dd6bd7dae" />
-
-
-This is where a personal second brain can become shared memory: start locally in Obsidian, power up the vault into a DKG Project, sync notes into memory, keep edits flowing into the graph, and then share access to that Context Graph with others.
+| Setting | Description |
+| --- | --- |
+| DKG node URL | Base URL of your local node (default `http://127.0.0.1:9200`). |
+| Auth token | Token from your DKG node (stored only in this vault's local plugin data). |
+| Auto-sync | Mirror note changes to the DKG automatically. |
+| Sync debounce | How long to wait after an edit before syncing (default 1.5s). |
+| Your projects | Projects you've created or joined, with owner/member roles. |
+| Folder rules | Folder → project routing for automatic per-folder sharing. |
 
 ## Development
 
 ```bash
 pnpm install
-pnpm build
+pnpm build      # type-check + production build → main.js
+pnpm test       # Vitest suite
+pnpm lint       # ESLint
+pnpm format     # Prettier (writes)
 ```
 
-The Obsidian plugin build emits:
+The [Makefile](Makefile) bundles the everyday tasks (run `make` for the full list):
 
-- `main.js`
-- `manifest.json`
-- `styles.css`
+| Target | Description |
+| --- | --- |
+| `make install VAULT="…"` | Copy the committed build into a vault (no rebuild). |
+| `make build` | Type-check + production build. |
+| `make dev` | esbuild watch (rebuilds on save). |
+| `make deploy` | Build + copy into local `DKG-testing*` vaults (with hot-reload marker). |
+| `make test` / `make lint` / `make format` | Test, lint, format. |
 
-## DKG endpoints used in the initial MVP
+The build emits exactly the three files Obsidian loads: `main.js`, `manifest.json`,
+and `styles.css`. `main.js` is committed and CI fails if it drifts from source, so run
+`pnpm build` and commit the result when you change `src/`.
 
-- `GET /api/status`
-- `GET /api/agent/identity`
-- `GET /api/context-graph/list`
-- `POST /api/context-graph/create`
-- `POST /api/assertion/create`
-- `POST /api/assertion/{name}/import-file`
-- `GET /api/assertion/{name}/extraction-status`
-- optional: `POST /api/assertion/{name}/promote`
+## DKG API surface
 
-## Safety model
+<details>
+<summary>HTTP endpoints this plugin calls on the DKG node</summary>
 
-- Notes are imported to Working Memory first.
-- Shared Memory promotion is optional and disabled by default.
-- Verified Memory / on-chain publishing is intentionally out of scope for the initial MVP.
-- The DKG auth token is stored only in the local Obsidian vault plugin data.
+- `GET  /api/status`: node health / connection test
+- `GET  /api/agent/identity`: local agent identity
+- `GET  /api/context-graph/list`: list context graphs (projects)
+- `POST /api/context-graph/create`: create a project
+- `POST /api/context-graph/subscribe`: subscribe to a project
+- `POST /api/context-graph/{id}/request-join`, `/sign-join`, `/approve-join`, `/join-requests`: join flow
+- `GET  /api/context-graph/{id}/participants`, `POST .../add-participant`, `.../remove-participant`: membership / allowlist
+- `POST /api/assertion/{name}/import-file`: import a note as an assertion (Markdown upload)
+- `GET  /api/assertion/{name}/extraction-status`: extraction progress
+- `POST /api/assertion/{name}/promote`: promote an assertion to shared memory
+- `POST /api/assertion/{name}/discard`: remove an assertion (cleanup on rename / delete)
+- `POST /api/assertion/semantic-enrichment/write`: append resolved-wikilink triples with provenance
+- `POST /api/assertion/import-artifact/read-markdown`: read back an imported note's original Markdown (Discover)
+- `GET  /api/sync/catchup-status`: replication (catch-up) status for a project
+- `POST /api/query`: read-only SPARQL query
+
+</details>
+
+## Privacy & safety
+
+- Notes are imported into your **own node's** vault graph and stay private there.
+- Sharing is **opt-in and explicit**, per note or per folder; nothing is published automatically.
+- The DKG auth token is stored only in the vault's local plugin data, never transmitted elsewhere.
+- On-chain / verified publishing is intentionally out of scope for this beta.
+
+## Roadmap
+
+- GitHub Release with prebuilt assets + [BRAT](https://github.com/TfTHacker/obsidian42-brat) install.
+- Obsidian Community Plugins submission.
+- Friendlier in-plugin DKG token discovery.
+
+## License
+
+[MIT](LICENSE) © Jaka Pelko

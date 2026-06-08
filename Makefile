@@ -12,7 +12,7 @@ NODE2_PORT    := 9201
 NODE2_OXI_PORT := 7879  # node1 uses the default 7878; node2 needs a different port
 
 .DEFAULT_GOAL := help
-.PHONY: build dev deploy deploy-no-build test lint format \
+.PHONY: build dev install deploy deploy-no-build test lint format \
         node1-init node1-start node1-stop node1-token node1-logs node1-reset \
         node2-init node2-start node2-stop node2-token node2-logs node2-reset \
         status help
@@ -23,6 +23,7 @@ help:
 	@echo "Usage: make <target>"
 	@echo ""
 	@echo "Plugin"
+	@echo "  install          Install into a vault: make install VAULT=\"/path/to/vault\""
 	@echo "  build            Type-check + production build"
 	@echo "  dev              esbuild watch (rebuilds on save)"
 	@echo "  deploy           Build + copy plugin into DKG-testing* vaults"
@@ -48,6 +49,13 @@ help:
 	@echo "  status           Show live status of both nodes"
 
 # ── Plugin ─────────────────────────────────────────────────────────────────────
+
+# One-command install for users: copy the committed build (main.js, manifest.json,
+# styles.css) into a vault. No build/Node needed — the artifacts ship in the repo.
+#   make install VAULT="/path/to/your vault"
+install:
+	@[ -n "$(VAULT)" ] || { echo 'Usage: make install VAULT="/path/to/your vault"'; exit 1; }
+	@bash scripts/deploy-to-vault.sh --no-build --no-hotreload "$(VAULT)"
 
 build:
 	$(NVM22) pnpm build
