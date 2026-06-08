@@ -132,32 +132,41 @@ export class JoinProjectModal extends Modal {
     this.renderSubscribing();
 
     const client = this.plugin.client();
-    const result = await client.subscribeToContextGraph(this.cgId);
+    await client.subscribeToContextGraph(this.cgId);
 
-    if (result?.catchup?.status !== "done") {
-      await this.pollCatchup(client);
-    }
-
+    // Record the subscription up front: the catch-up runs server-side and
+    // persists even if this modal is closed, so the project belongs in the
+    // list regardless of whether we observe it finish here.
     const already = this.plugin.settings.subscribedContextGraphs.find((c) => c.id === this.cgId);
     if (!already) {
       this.plugin.settings.subscribedContextGraphs.push({ id: this.cgId, name: this.cgId, role: "member" });
       await this.plugin.saveSettings();
     }
-
-    this.renderDone();
     this.onDone?.();
+
+    // Wait for the project to become genuinely usable (gated/synced), not for
+    // an arbitrary timer. If it doesn't settle within the window we say so
+    // honestly rather than claiming success.
+    const ready = await this.waitUntilReady(client);
+    if (ready) {
+      this.renderDone();
+    } else {
+      this.renderStillSyncing();
+    }
   }
 
-  /** Poll the catch-up job to completion without re-triggering the subscribe. */
-  private async pollCatchup(client: DkgClient) {
-    for (let i = 0; i < 60; i++) {
+  /**
+   * Poll the real readiness signal (allowlist for curated, `synced` for
+   * public) until the project is usable. Returns false on timeout — the
+   * catch-up keeps running server-side, so this is "not yet", not "failed".
+   */
+  private async waitUntilReady(client: DkgClient): Promise<boolean> {
+    for (let i = 0; i < 45; i++) {
+      const r = await client.projectReadiness(this.cgId).catch(() => null);
+      if (r?.ready) return true;
       await sleep(2000);
-      const status = await client.catchupStatus(this.cgId);
-      // null = no job tracked (already finished and pruned) → stop polling.
-      if (!status) break;
-      const s = status.status;
-      if (s === "done" || s === "failed" || s === "denied" || s === "unreachable") break;
     }
+    return false;
   }
 
   private renderSubscribing() {
@@ -165,7 +174,7 @@ export class JoinProjectModal extends Modal {
     contentEl.empty();
     contentEl.createEl("h2", { text: "Subscribing…" });
     contentEl.createEl("p", {
-      text: "Syncing promoted notes from the shared project. This may take a moment.",
+      text: "Syncing the project to this node. This can take up to a minute — please keep this open.",
     });
   }
 
@@ -174,7 +183,7 @@ export class JoinProjectModal extends Modal {
     contentEl.empty();
     contentEl.createEl("h2", { text: "Joined!" });
     contentEl.createEl("p", {
-      text: `You are now subscribed to "${this.cgId}". Promoted notes from the project are available in your local DKG.`,
+      text: `You're fully synced to "${this.cgId}". Promoted notes from the project are available on this node, and the curator can now share notes to you.`,
     });
     new Setting(contentEl).addButton((btn) =>
       btn
@@ -182,5 +191,41 @@ export class JoinProjectModal extends Modal {
         .setCta()
         .onClick(() => this.close())
     );
+  }
+
+  /**
+   * Honest "not finished yet" state. The subscription is saved and the
+   * catch-up continues in the background, so closing is safe; we offer a
+   * one-shot re-check rather than spinning a blocking retry loop.
+   */
+  private renderStillSyncing() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.createEl("h2", { text: "Still syncing…" });
+    contentEl.createEl("p", {
+      text: `"${this.cgId}" is subscribed but hasn't finished syncing yet. This keeps running in the background — you can safely close this and check the project's status on the dashboard. Sharing to you won't work until it's fully synced.`,
+    });
+    new Setting(contentEl)
+      .addButton((b) =>
+        b.setButtonText("Check again").onClick(async () => {
+          b.setButtonText("Checking…").setDisabled(true);
+          const ready = await this.plugin
+            .client()
+            .projectReadiness(this.cgId)
+            .catch(() => null);
+          if (ready?.ready) {
+            this.renderDone();
+          } else {
+            b.setButtonText("Check again").setDisabled(false);
+            new Notice("Not synced yet — give it a little longer.");
+          }
+        })
+      )
+      .addButton((b) =>
+        b
+          .setButtonText("Close")
+          .setCta()
+          .onClick(() => this.close())
+      );
   }
 }

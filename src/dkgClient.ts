@@ -4,6 +4,7 @@ import type {
   ContextGraphSummary,
   ExtractionStatusResponse,
   ImportResult,
+  ProjectReadiness,
   RequestTransport,
 } from "./types";
 
@@ -32,9 +33,34 @@ export class DkgClient {
         return {
           id: String(g.id ?? g.contextGraphId ?? g.context_graph_id ?? ""),
           name: String(g.name ?? g.displayName ?? g.id ?? g.contextGraphId ?? ""),
+          subscribed: typeof g.subscribed === "boolean" ? g.subscribed : undefined,
+          synced: typeof g.synced === "boolean" ? g.synced : undefined,
+          accessPolicy: typeof g.accessPolicy === "string" ? g.accessPolicy : undefined,
         };
       })
       .filter((g) => g.id.length > 0);
+  }
+
+  /**
+   * Resolve whether a subscribed project is fully usable on this node.
+   * Combines the `synced` flag (from the graph list) with the allowlist size
+   * (from `/participants`) — see {@link ProjectReadiness} for why catch-up
+   * status is deliberately not consulted.
+   */
+  async projectReadiness(contextGraphId: string): Promise<ProjectReadiness> {
+    const [graphs, participants] = await Promise.all([
+      this.listContextGraphs().catch((): ContextGraphSummary[] => []),
+      this.listParticipants(contextGraphId).catch(() => ({ allowedAgents: [] as string[] })),
+    ]);
+    const entry = graphs.find((g) => g.id === contextGraphId);
+    const synced = entry?.synced === true;
+    const allowlistSize = participants.allowedAgents?.length ?? 0;
+    const accessPolicy = entry?.accessPolicy;
+    // Curated/private: an empty allowlist means this node isn't gated yet, so
+    // it can't receive shares regardless of the synced flag. Public: synced is
+    // the only thing that matters (the allowlist stays empty by design).
+    const ready = accessPolicy === "private" ? allowlistSize > 0 : synced;
+    return { ready, synced, allowlistSize, accessPolicy };
   }
 
   /**

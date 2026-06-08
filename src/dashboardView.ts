@@ -264,6 +264,11 @@ export class DkgDashboardView extends ItemView {
             tooltip: "Manage members and copy the invite code.",
             onClick: () => new ManageMembersModal(this.plugin, cg.id, cg.name || cg.id, cg.curated).open(),
           });
+        } else {
+          // Members can be subscribed-but-not-synced (catch-up never finished).
+          // Show the real status and a manual resync — no background loop.
+          const status = name.createSpan({ cls: "dkg-sync-chip", text: "checking…" });
+          void this.refreshProjectStatus(row, status, cg.id);
         }
       }
     }
@@ -284,6 +289,50 @@ export class DkgDashboardView extends ItemView {
       tooltip: "Join a project using an invite code.",
       onClick: () => new JoinProjectModal(this.plugin, () => this.render()).open(),
     });
+  }
+
+  /**
+   * Fill a project row's sync chip from the real readiness signal, and add a
+   * one-shot Resync button when it isn't synced yet. Deliberately no polling
+   * loop — the user asked not to hammer the node with repeated tries.
+   */
+  private async refreshProjectStatus(row: HTMLElement, chip: HTMLElement, cgId: string): Promise<void> {
+    const r = await this.plugin
+      .client()
+      .projectReadiness(cgId)
+      .catch(() => null);
+    if (!r) {
+      chip.setText("status unknown");
+      chip.className = "dkg-sync-chip warn";
+      return;
+    }
+    if (r.ready) {
+      chip.setText("Synced");
+      chip.className = "dkg-sync-chip ok";
+      setTooltip(chip, "Fully synced — you receive shared notes and can read this project.");
+      return;
+    }
+    chip.setText("Not synced");
+    chip.className = "dkg-sync-chip warn";
+    setTooltip(chip, "Subscribed but the sync hasn't finished. The curator can't share to you until this is synced.");
+    if (row.querySelector(".dkg-resync")) return;
+    const resync = btn(row, {
+      icon: "refresh-cw",
+      text: "Resync",
+      ghost: true,
+      tooltip: "Re-run the sync for this project.",
+      onClick: async () => {
+        chip.setText("syncing…");
+        chip.className = "dkg-sync-chip";
+        try {
+          await this.plugin.client().subscribeToContextGraph(cgId);
+        } catch {
+          /* subscribe is idempotent; ignore and re-check below */
+        }
+        await this.refreshProjectStatus(row, chip, cgId);
+      },
+    });
+    resync.addClass("dkg-resync");
   }
 
   // ── Footer ──────────────────────────────────────────────────────────────────
