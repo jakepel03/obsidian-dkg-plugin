@@ -280,6 +280,23 @@
   color: var(--text-normal);
   background: color-mix(in srgb, var(--interactive-accent) 16%, transparent);
 }
+.dkg-sync-chip {
+  flex: 0 0 auto;
+  font-size: 0.68em;
+  letter-spacing: 0.02em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  background: var(--background-modifier-hover);
+}
+.dkg-sync-chip.ok {
+  color: var(--text-success, var(--text-normal));
+  background: color-mix(in srgb, var(--color-green, var(--interactive-accent)) 16%, transparent);
+}
+.dkg-sync-chip.warn {
+  color: var(--text-warning, var(--text-normal));
+  background: color-mix(in srgb, var(--color-orange, var(--text-warning)) 18%, transparent);
+}
 
 /* ──────────────────────────────────────────────────────────────────────────
    Modals + settings
