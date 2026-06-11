@@ -213,7 +213,6 @@ and `styles.css`. `main.js` is committed and CI fails if it drifts from source, 
 - `POST /api/assertion/{name}/discard`: remove an assertion (cleanup on rename / delete)
 - `POST /api/assertion/semantic-enrichment/write`: append resolved-wikilink triples with provenance
 - `POST /api/assertion/import-artifact/read-markdown`: read back an imported note's original Markdown (Discover)
-- `GET  /api/sync/catchup-status`: replication (catch-up) status for a project
 - `POST /api/query`: read-only SPARQL query
 
 </details>
