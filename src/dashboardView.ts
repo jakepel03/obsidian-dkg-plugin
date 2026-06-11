@@ -1,5 +1,6 @@
 import { ItemView, Notice, setIcon, setTooltip, WorkspaceLeaf } from "obsidian";
 import type OriginTrailDkgPlugin from "./main";
+import type { ProjectReadiness } from "./types";
 import { SetupWizardModal } from "./wizard";
 import { CreateProjectModal } from "./createProjectModal";
 import { JoinProjectModal } from "./joinProjectModal";
@@ -31,11 +32,16 @@ interface BtnOpts {
  * One panel for everything you *do* with the plugin: live status, actions on
  * the current note, projects, and discover. Settings keeps only configuration.
  */
+/** How long a project's readiness result stays fresh before the next render re-fetches it. */
+const READINESS_TTL_MS = 30_000;
+
 export class DkgDashboardView extends ItemView {
   private noteSectionEl: HTMLElement | null = null;
   private statusPill: HTMLElement | null = null;
   private statusText: HTMLElement | null = null;
   private lastStatus: ConnState = "checking";
+  /** Cached readiness per project, so re-renders don't refire list+participants calls. */
+  private readonly readinessCache = new Map<string, { readiness: ProjectReadiness | null; at: number }>();
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -76,6 +82,11 @@ export class DkgDashboardView extends ItemView {
     this.renderThisNote(this.noteSectionEl);
     this.renderProjects(root);
     this.renderFooter(root);
+  }
+
+  /** Re-render only the "This note" section (e.g. after a sync finishes). */
+  refreshNote(): void {
+    if (this.noteSectionEl) this.renderThisNote(this.noteSectionEl);
   }
 
   // ── Header + live status pill ───────────────────────────────────────────────
@@ -291,16 +302,25 @@ export class DkgDashboardView extends ItemView {
     });
   }
 
+  /** Readiness with a short TTL cache; `force` bypasses it (Resync, explicit re-check). */
+  private async getReadiness(cgId: string, force = false): Promise<ProjectReadiness | null> {
+    const cached = this.readinessCache.get(cgId);
+    if (!force && cached && Date.now() - cached.at < READINESS_TTL_MS) return cached.readiness;
+    const readiness = await this.plugin
+      .client()
+      .projectReadiness(cgId)
+      .catch(() => null);
+    this.readinessCache.set(cgId, { readiness, at: Date.now() });
+    return readiness;
+  }
+
   /**
    * Fill a project row's sync chip from the real readiness signal, and add a
    * one-shot Resync button when it isn't synced yet. Deliberately no polling
    * loop — the user asked not to hammer the node with repeated tries.
    */
-  private async refreshProjectStatus(row: HTMLElement, chip: HTMLElement, cgId: string): Promise<void> {
-    const r = await this.plugin
-      .client()
-      .projectReadiness(cgId)
-      .catch(() => null);
+  private async refreshProjectStatus(row: HTMLElement, chip: HTMLElement, cgId: string, force = false): Promise<void> {
+    const r = await this.getReadiness(cgId, force);
     if (!r) {
       chip.setText("status unknown");
       chip.className = "dkg-sync-chip warn";
@@ -329,7 +349,7 @@ export class DkgDashboardView extends ItemView {
         } catch {
           /* subscribe is idempotent; ignore and re-check below */
         }
-        await this.refreshProjectStatus(row, chip, cgId);
+        await this.refreshProjectStatus(row, chip, cgId, true);
       },
     });
     resync.addClass("dkg-resync");

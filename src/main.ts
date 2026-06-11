@@ -163,10 +163,14 @@ export default class OriginTrailDkgPlugin extends Plugin {
 
   updateStatusBar() {
     if (!this.statusBarEl) return;
+    this.setStatusBarText();
+    this.refreshDashboard();
+  }
+
+  private setStatusBarText(): void {
     const project = this.settings.defaultContextGraphId || "unlinked";
     const sync = this.settings.autoSync ? "synced" : "auto-sync off";
     this.statusBarEl.setText(`DKG: ${project} · ${sync}`);
-    this.refreshDashboard();
   }
 
   /** Open (or reveal) the dashboard panel in the right sidebar. */
@@ -190,6 +194,14 @@ export default class OriginTrailDkgPlugin extends Plugin {
     }
   }
 
+  /** Refresh only the dashboard's "This note" section (cheap — no network calls). */
+  refreshDashboardNote(): void {
+    for (const leaf of this.app.workspace.getLeavesOfType(DKG_DASHBOARD_VIEW)) {
+      const view = leaf.view;
+      if (view instanceof DkgDashboardView) view.refreshNote();
+    }
+  }
+
   /** Transient status-bar feedback while a sync is in flight (driven by SyncController). */
   setStatusSyncing(): void {
     if (this.savedStatusTimer !== null) {
@@ -201,9 +213,13 @@ export default class OriginTrailDkgPlugin extends Plugin {
 
   setStatusSaved(): void {
     this.statusBarEl.setText("DKG: saved ✓");
+    // A finished sync only changes the "This note" card — re-rendering the
+    // whole dashboard here would refire its readiness/connection checks on
+    // every autosave.
+    this.refreshDashboardNote();
     this.savedStatusTimer = window.setTimeout(() => {
       this.savedStatusTimer = null;
-      this.updateStatusBar();
+      this.setStatusBarText();
     }, 3000);
   }
 
