@@ -107,6 +107,11 @@ export class DkgClient {
     }) as Promise<{ catchup?: CatchupStatus }>;
   }
 
+  /** Drop the node's live subscription to a context graph (stops replication; the graph itself is untouched). */
+  async unsubscribeFromContextGraph(contextGraphId: string): Promise<unknown> {
+    return this.json("POST", "/api/context-graph/unsubscribe", { contextGraphId });
+  }
+
   /**
    * Poll the status of a context graph's catch-up (replication) job. Returns
    * null when no job is tracked (e.g. catch-up already finished and was pruned),
