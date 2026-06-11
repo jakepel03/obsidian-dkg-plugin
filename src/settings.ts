@@ -18,13 +18,13 @@ export class OriginTrailSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "OriginTrail DKG" });
-
+    // Headings use Setting.setHeading() and there is no top-level plugin-name
+    // heading, per the Obsidian plugin guidelines (the tab is already titled).
     const isLinked = Boolean(this.plugin.settings.defaultContextGraphId);
 
     // ── Status / Getting started ─────────────────────────────────────────────
     if (!isLinked) {
-      containerEl.createEl("h3", { text: "Getting started" });
+      new Setting(containerEl).setName("Getting started").setHeading();
 
       new Setting(containerEl)
         .setName("This vault is not yet connected to a DKG node")
@@ -36,7 +36,7 @@ export class OriginTrailSettingTab extends PluginSettingTab {
             .onClick(() => new SetupWizardModal(this.plugin, () => this.display()).open())
         );
     } else {
-      containerEl.createEl("h3", { text: "Status" });
+      new Setting(containerEl).setName("Status").setHeading();
 
       const card = containerEl.createDiv({ cls: "dkg-status-card" });
 
@@ -69,7 +69,7 @@ export class OriginTrailSettingTab extends PluginSettingTab {
     }
 
     // ── Projects ─────────────────────────────────────────────────────────────
-    containerEl.createEl("h3", { text: "Projects" });
+    new Setting(containerEl).setName("Projects").setHeading();
 
     const subscribed = this.plugin.settings.subscribedContextGraphs;
 
@@ -118,7 +118,7 @@ export class OriginTrailSettingTab extends PluginSettingTab {
       );
 
     // ── Sharing ────────────────────────────────────────────────────────────────
-    containerEl.createEl("h3", { text: "Sharing" });
+    new Setting(containerEl).setName("Sharing").setHeading();
 
     containerEl.createEl("p", {
       cls: "dkg-para-muted",
@@ -175,7 +175,7 @@ export class OriginTrailSettingTab extends PluginSettingTab {
     }
 
     // ── Connection ───────────────────────────────────────────────────────────
-    containerEl.createEl("h3", { text: "Connection" });
+    new Setting(containerEl).setName("Connection").setHeading();
 
     new Setting(containerEl)
       .setName("DKG node URL")

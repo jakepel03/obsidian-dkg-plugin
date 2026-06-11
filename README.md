@@ -106,7 +106,7 @@ it in Obsidian under **Settings → Community plugins** (turn off Restricted mod
 ## Getting started
 
 The first time you open a vault with the plugin enabled, a **setup wizard** runs
-(you can re-open it any time with the command **Connect this vault to OriginTrail DKG**):
+(you can re-open it any time with the command **Connect this vault**):
 
 1. **Connect**: enter your DKG node URL and auth token, then **Test** the connection.
 2. **Import**: links a DKG project to your vault and imports all existing Markdown notes into it.
@@ -148,12 +148,12 @@ All commands are available from the command palette under the **OriginTrail DKG*
 
 | Command | What it does |
 | --- | --- |
-| Open DKG dashboard | Open the dashboard panel in the right sidebar (also the ribbon icon). |
-| Test DKG connection | Verify the plugin can reach your node with the current credentials. |
-| Connect this vault to OriginTrail DKG | Launch the 3-step setup wizard. |
-| Sync current note to DKG | Manually sync the active note. |
-| Create shared DKG project | Create a new shared project (context graph). |
-| Join shared DKG project | Join / subscribe to an existing project. |
+| Open dashboard | Open the dashboard panel in the right sidebar (also the ribbon icon). |
+| Test connection | Verify the plugin can reach your node with the current credentials. |
+| Connect this vault | Launch the 3-step setup wizard. |
+| Sync current note | Manually sync the active note. |
+| Create shared project | Create a new shared project (context graph). |
+| Join shared project | Join / subscribe to an existing project. |
 | Discover shared notes from a project | Browse notes shared into a subscribed project. |
 | Share current note to a project | Share the active note to a chosen project. |
 | Stop sharing current note | Make the active note private again. |

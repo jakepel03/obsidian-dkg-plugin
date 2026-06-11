@@ -71,7 +71,7 @@ export class SyncController {
 
   async syncFile(file: TFile, silent = false): Promise<SyncResult | undefined> {
     if (!this.settings.defaultContextGraphId) {
-      new Notice('This vault is not connected to DKG yet. Run "Connect this vault to OriginTrail DKG" first.');
+      new Notice('This vault is not connected to DKG yet. Run "Connect this vault" first.');
       return undefined;
     }
     if (file.extension !== "md" || shouldSkipPath(file.path)) return undefined;
