@@ -205,7 +205,7 @@ and `styles.css`. `main.js` is committed and CI fails if it drifts from source, 
 - `GET  /api/context-graph/list`: list context graphs (projects)
 - `POST /api/context-graph/create`: create a project
 - `POST /api/context-graph/subscribe`: subscribe to a project
-- `POST /api/context-graph/{id}/request-join`, `/sign-join`, `/approve-join`, `/join-requests`: join flow
+- `POST /api/context-graph/{id}/request-join`, `/sign-join`, `/approve-join`, `/reject-join`, `/join-requests`: join flow
 - `GET  /api/context-graph/{id}/participants`, `POST .../add-participant`, `.../remove-participant`: membership / allowlist
 - `POST /api/assertion/{name}/import-file`: import a note as an assertion (Markdown upload)
 - `GET  /api/assertion/{name}/extraction-status`: extraction progress
