@@ -73,7 +73,12 @@ export function resolveRouting(
   return { contextGraphId: opts.primaryContextGraphId, promote: false };
 }
 
-/** Longest matching folder prefix wins; resolves the rule's project to a real id. */
+/**
+ * Longest matching folder prefix wins; resolves the rule's project to a real id.
+ * A rule pointing at a project this vault isn't subscribed to is skipped (the
+ * note stays private), mirroring how `shared_to` refuses unknown projects —
+ * a stale rule must not keep promoting notes into a graph the user left.
+ */
 function matchFolderDestination(
   filePath: string,
   rules: FolderDestination[],
@@ -85,8 +90,8 @@ function matchFolderDestination(
     const prefix = rule.folder.endsWith("/") ? rule.folder : `${rule.folder}/`;
     if (!filePath.startsWith(prefix)) continue;
     const match = subs.find((c) => c.id === rule.contextGraphId || c.name === rule.contextGraphId);
-    const cg = match?.id ?? rule.contextGraphId;
-    if (!best || prefix.length > best.len) best = { len: prefix.length, cg };
+    if (!match) continue;
+    if (!best || prefix.length > best.len) best = { len: prefix.length, cg: match.id };
   }
   return best?.cg;
 }
