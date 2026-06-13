@@ -59,7 +59,9 @@ export class OriginTrailSettingTab extends PluginSettingTab {
       manageBtn.onClick(() => {
         const cgId = this.plugin.settings.defaultContextGraphId;
         const name = this.plugin.app.vault.getName();
-        new ManageMembersModal(this.plugin, cgId, name, false).open();
+        // The vault graph is created private (allowlist-gated), so its invite
+        // code must carry the curator peer id for the join-request flow.
+        new ManageMembersModal(this.plugin, cgId, name, true).open();
       });
 
       const reconfigBtn = new ButtonComponent(btnGroup);
