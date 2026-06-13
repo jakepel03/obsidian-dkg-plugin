@@ -186,7 +186,7 @@ export class DkgClient {
       }
     );
 
-    return this.rawJson("POST", `/api/assertion/${encodeURIComponent(assertionName)}/import-file`, body, {
+    return this.rawJson("POST", `/api/knowledge-assets/${encodeURIComponent(assertionName)}/wm/import-file`, body, {
       "Content-Type": `multipart/form-data; boundary=${boundary}`,
     }) as Promise<ImportResult>;
   }
@@ -195,12 +195,13 @@ export class DkgClient {
     const query = `contextGraphId=${encodeURIComponent(contextGraphId)}`;
     return this.json(
       "GET",
-      `/api/assertion/${encodeURIComponent(assertionName)}/extraction-status?${query}`
+      `/api/knowledge-assets/${encodeURIComponent(assertionName)}/wm/extraction-status?${query}`
     ) as Promise<ExtractionStatusResponse>;
   }
 
+  /** Share an assertion's triples into Shared Memory (the route formerly named "promote"). */
   async promoteAssertion(contextGraphId: string, assertionName: string): Promise<unknown> {
-    return this.json("POST", `/api/assertion/${encodeURIComponent(assertionName)}/promote`, {
+    return this.json("POST", `/api/knowledge-assets/${encodeURIComponent(assertionName)}/swm/share`, {
       contextGraphId,
       entities: "all",
     });
@@ -213,7 +214,7 @@ export class DkgClient {
    * a no-op rather than an error.
    */
   async discardAssertion(contextGraphId: string, assertionName: string): Promise<unknown> {
-    return this.json("POST", `/api/assertion/${encodeURIComponent(assertionName)}/discard`, {
+    return this.json("POST", `/api/knowledge-assets/${encodeURIComponent(assertionName)}/wm/discard`, {
       contextGraphId,
     });
   }
@@ -230,7 +231,7 @@ export class DkgClient {
     assertionUri: string,
     semanticQuads: Array<{ subject: string; predicate: string; object: string }>
   ): Promise<unknown> {
-    return this.json("POST", "/api/assertion/semantic-enrichment/write", {
+    return this.json("POST", "/api/knowledge-assets/semantic-enrichment/write", {
       contextGraphId,
       assertionName,
       assertionUri,
@@ -265,7 +266,7 @@ export class DkgClient {
     assertionName: string
   ): Promise<string | null> {
     try {
-      const data: any = await this.json("POST", "/api/assertion/import-artifact/read-markdown", {
+      const data: any = await this.json("POST", "/api/knowledge-assets/import-artifact/read-markdown", {
         contextGraphId,
         assertionUri,
         assertionName,
