@@ -79,22 +79,40 @@ export class ManageMembersModal extends Modal {
         const delegation = req.delegation as Record<string, unknown> | undefined;
         const addr = String(req.agentAddress ?? delegation?.agentAddress ?? "(unknown)");
         const label = req.agentName ? `${String(req.agentName)} (${addr})` : addr;
-        new Setting(contentEl).setName(label).addButton((btn) =>
-          btn
-            .setButtonText("Approve")
-            .setCta()
-            .onClick(async () => {
-              btn.setButtonText("Approving…").setDisabled(true);
-              try {
-                await client.approveJoinRequest(this.contextGraphId, addr);
-                new Notice(`Approved ${label}`);
-                void this.render();
-              } catch (err) {
-                new Notice(`Approve failed: ${errorMessage(err)}`, 8000);
-                btn.setButtonText("Approve").setDisabled(false);
-              }
-            })
-        );
+        new Setting(contentEl)
+          .setName(label)
+          .addButton((btn) =>
+            btn
+              .setButtonText("Approve")
+              .setCta()
+              .onClick(async () => {
+                btn.setButtonText("Approving…").setDisabled(true);
+                try {
+                  await client.approveJoinRequest(this.contextGraphId, addr);
+                  new Notice(`Approved ${label}`);
+                  void this.render();
+                } catch (err) {
+                  new Notice(`Approve failed: ${errorMessage(err)}`, 8000);
+                  btn.setButtonText("Approve").setDisabled(false);
+                }
+              })
+          )
+          .addButton((btn) =>
+            btn
+              .setButtonText("Reject")
+              .setWarning()
+              .onClick(async () => {
+                btn.setButtonText("Rejecting…").setDisabled(true);
+                try {
+                  await client.rejectJoinRequest(this.contextGraphId, addr);
+                  new Notice(`Rejected ${label}`);
+                  void this.render();
+                } catch (err) {
+                  new Notice(`Reject failed: ${errorMessage(err)}`, 8000);
+                  btn.setButtonText("Reject").setDisabled(false);
+                }
+              })
+          );
       }
     }
 

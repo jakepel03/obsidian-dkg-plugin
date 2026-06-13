@@ -136,6 +136,10 @@ export class DkgClient {
     return this.json("POST", `/api/context-graph/${encodeURIComponent(contextGraphId)}/approve-join`, { agentAddress });
   }
 
+  async rejectJoinRequest(contextGraphId: string, agentAddress: string): Promise<unknown> {
+    return this.json("POST", `/api/context-graph/${encodeURIComponent(contextGraphId)}/reject-join`, { agentAddress });
+  }
+
   async ensureContextGraph(id: string, name: string): Promise<ContextGraphSummary> {
     const before = await this.listContextGraphs().catch((): ContextGraphSummary[] => []);
     const existing = before.find((g) => g.id === id || g.name === name);
