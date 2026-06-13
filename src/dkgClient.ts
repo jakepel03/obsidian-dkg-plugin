@@ -1,6 +1,5 @@
 import type {
   AgentIdentity,
-  CatchupStatus,
   ContextGraphSummary,
   ExtractionStatusResponse,
   ImportResult,
@@ -100,28 +99,16 @@ export class DkgClient {
     });
   }
 
-  async subscribeToContextGraph(contextGraphId: string): Promise<{ catchup?: CatchupStatus }> {
+  async subscribeToContextGraph(contextGraphId: string): Promise<unknown> {
     return this.json("POST", "/api/context-graph/subscribe", {
       contextGraphId,
       includeSharedMemory: true,
-    }) as Promise<{ catchup?: CatchupStatus }>;
+    });
   }
 
-  /**
-   * Poll the status of a context graph's catch-up (replication) job. Returns
-   * null when no job is tracked (e.g. catch-up already finished and was pruned),
-   * which callers treat as "no longer running".
-   */
-  async catchupStatus(contextGraphId: string): Promise<CatchupStatus | null> {
-    try {
-      const data = await this.json(
-        "GET",
-        `/api/sync/catchup-status?contextGraphId=${encodeURIComponent(contextGraphId)}`
-      );
-      return data as CatchupStatus;
-    } catch {
-      return null;
-    }
+  /** Drop the node's live subscription to a context graph (stops replication; the graph itself is untouched). */
+  async unsubscribeFromContextGraph(contextGraphId: string): Promise<unknown> {
+    return this.json("POST", "/api/context-graph/unsubscribe", { contextGraphId });
   }
 
   async listParticipants(contextGraphId: string): Promise<{ allowedAgents: string[] }> {
@@ -147,6 +134,10 @@ export class DkgClient {
 
   async approveJoinRequest(contextGraphId: string, agentAddress: string): Promise<unknown> {
     return this.json("POST", `/api/context-graph/${encodeURIComponent(contextGraphId)}/approve-join`, { agentAddress });
+  }
+
+  async rejectJoinRequest(contextGraphId: string, agentAddress: string): Promise<unknown> {
+    return this.json("POST", `/api/context-graph/${encodeURIComponent(contextGraphId)}/reject-join`, { agentAddress });
   }
 
   async ensureContextGraph(id: string, name: string): Promise<ContextGraphSummary> {
@@ -186,7 +177,7 @@ export class DkgClient {
       }
     );
 
-    return this.rawJson("POST", `/api/assertion/${encodeURIComponent(assertionName)}/import-file`, body, {
+    return this.rawJson("POST", `/api/knowledge-assets/${encodeURIComponent(assertionName)}/wm/import-file`, body, {
       "Content-Type": `multipart/form-data; boundary=${boundary}`,
     }) as Promise<ImportResult>;
   }
@@ -195,12 +186,13 @@ export class DkgClient {
     const query = `contextGraphId=${encodeURIComponent(contextGraphId)}`;
     return this.json(
       "GET",
-      `/api/assertion/${encodeURIComponent(assertionName)}/extraction-status?${query}`
+      `/api/knowledge-assets/${encodeURIComponent(assertionName)}/wm/extraction-status?${query}`
     ) as Promise<ExtractionStatusResponse>;
   }
 
+  /** Share an assertion's triples into Shared Memory (the route formerly named "promote"). */
   async promoteAssertion(contextGraphId: string, assertionName: string): Promise<unknown> {
-    return this.json("POST", `/api/assertion/${encodeURIComponent(assertionName)}/promote`, {
+    return this.json("POST", `/api/knowledge-assets/${encodeURIComponent(assertionName)}/swm/share`, {
       contextGraphId,
       entities: "all",
     });
@@ -213,7 +205,7 @@ export class DkgClient {
    * a no-op rather than an error.
    */
   async discardAssertion(contextGraphId: string, assertionName: string): Promise<unknown> {
-    return this.json("POST", `/api/assertion/${encodeURIComponent(assertionName)}/discard`, {
+    return this.json("POST", `/api/knowledge-assets/${encodeURIComponent(assertionName)}/wm/discard`, {
       contextGraphId,
     });
   }
@@ -230,7 +222,7 @@ export class DkgClient {
     assertionUri: string,
     semanticQuads: Array<{ subject: string; predicate: string; object: string }>
   ): Promise<unknown> {
-    return this.json("POST", "/api/assertion/semantic-enrichment/write", {
+    return this.json("POST", "/api/knowledge-assets/semantic-enrichment/write", {
       contextGraphId,
       assertionName,
       assertionUri,
@@ -265,7 +257,7 @@ export class DkgClient {
     assertionName: string
   ): Promise<string | null> {
     try {
-      const data: any = await this.json("POST", "/api/assertion/import-artifact/read-markdown", {
+      const data: any = await this.json("POST", "/api/knowledge-assets/import-artifact/read-markdown", {
         contextGraphId,
         assertionUri,
         assertionName,

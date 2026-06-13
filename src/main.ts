@@ -31,27 +31,30 @@ export default class OriginTrailDkgPlugin extends Plugin {
 
     this.registerView(DKG_DASHBOARD_VIEW, (leaf) => new DkgDashboardView(leaf, this));
     this.addRibbonIcon("git-fork", "OriginTrail DKG dashboard", () => this.activateDashboard());
+    // Command names deliberately omit "DKG"/the plugin name: the palette
+    // already prefixes them with "OriginTrail DKG:" (Obsidian guideline).
+    // Ids stay unchanged so existing hotkey bindings keep working.
     this.addCommand({
       id: "open-dkg-dashboard",
-      name: "Open DKG dashboard",
+      name: "Open dashboard",
       callback: () => this.activateDashboard(),
     });
 
     this.addCommand({
       id: "test-dkg-connection",
-      name: "Test DKG connection",
+      name: "Test connection",
       callback: () => this.testConnection(),
     });
 
     this.addCommand({
       id: "connect-vault",
-      name: "Connect this vault to OriginTrail DKG",
+      name: "Connect this vault",
       callback: () => new SetupWizardModal(this).open(),
     });
 
     this.addCommand({
       id: "sync-current-note",
-      name: "Sync current note to DKG",
+      name: "Sync current note",
       checkCallback: (checking) => {
         const file = this.app.workspace.getActiveFile();
         if (!file || file.extension !== "md") return false;
@@ -62,13 +65,13 @@ export default class OriginTrailDkgPlugin extends Plugin {
 
     this.addCommand({
       id: "create-shared-dkg-project",
-      name: "Create shared DKG project",
+      name: "Create shared project",
       callback: () => new CreateProjectModal(this, () => this.updateStatusBar()).open(),
     });
 
     this.addCommand({
       id: "join-shared-dkg-project",
-      name: "Join shared DKG project",
+      name: "Join shared project",
       callback: () => new JoinProjectModal(this, () => this.updateStatusBar()).open(),
     });
 

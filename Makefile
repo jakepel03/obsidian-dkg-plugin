@@ -63,8 +63,10 @@ build:
 dev:
 	$(NVM22) pnpm dev
 
+# `run` is required: a bare `pnpm deploy` resolves to pnpm's built-in
+# workspace deploy command, not this package's script.
 deploy:
-	$(NVM22) pnpm deploy
+	$(NVM22) pnpm run deploy
 
 deploy-no-build:
 	$(NVM22) bash scripts/deploy-to-vault.sh --no-build
