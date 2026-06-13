@@ -70,4 +70,26 @@ describe("resolveRouting (private by default, share to a destination)", () => {
     const r = resolveRouting("Team/Model.md", { shared_to: "ml-notes" }, opts);
     expect(r.contextGraphId).toBe("ml-notes");
   });
+
+  it("keeps a note private when a folder rule points at a project the vault left", () => {
+    const opts: SyncOptions = {
+      ...base,
+      folderDestinations: [{ folder: "Team/", contextGraphId: "departed-project" }],
+    };
+    expect(resolveRouting("Team/Plan.md", undefined, opts)).toEqual({
+      contextGraphId: "my-vault",
+      promote: false,
+    });
+  });
+
+  it("falls through a stale folder rule to a broader subscribed one", () => {
+    const opts: SyncOptions = {
+      ...base,
+      folderDestinations: [
+        { folder: "Team/", contextGraphId: "research-team" },
+        { folder: "Team/ML", contextGraphId: "departed-project" },
+      ],
+    };
+    expect(resolveRouting("Team/ML/Model.md", undefined, opts).contextGraphId).toBe("research-team");
+  });
 });

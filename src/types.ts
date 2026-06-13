@@ -75,11 +75,6 @@ export interface AgentIdentity {
   agentDid: string;
 }
 
-/** Catch-up (replication) job status for a subscribed context graph. */
-export interface CatchupStatus {
-  status?: "pending" | "running" | "done" | "failed" | "denied" | "unreachable" | string;
-}
-
 /** Response from importing a Markdown file into an assertion. */
 export interface ImportResult {
   extraction?: { status?: string; tripleCount?: number };
