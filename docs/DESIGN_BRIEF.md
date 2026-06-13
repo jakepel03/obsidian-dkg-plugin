@@ -39,19 +39,19 @@ A note's lifecycle through the plugin:
 1. **Connect** (3-step setup wizard): enter the local node's URL + auth token; the plugin
    verifies the connection and links a **Context Graph** named after the vault.
 2. **Import to Working Memory**: every Markdown note is imported as an **Assertion**
-   (`POST /api/assertion/{name}/import-file`). Stable, content-addressed assertion names
-   keep a note's identity constant across edits.
+   (`POST /api/knowledge-assets/{name}/wm/import-file`). Stable, content-addressed assertion
+   names keep a note's identity constant across edits.
 3. **Enrich for connectivity**: after import, the plugin resolves Obsidian's `[[wikilinks]]`
    to the *real* target assertion URIs and writes `schema:mentions` edges plus a
    `schema:name` title triple back onto the note's own WM graph, with provenance
-   (`POST /api/assertion/semantic-enrichment/write`). This turns a bag of documents into a
+   (`POST /api/knowledge-assets/semantic-enrichment/write`). This turns a bag of documents into a
    connected graph that mirrors the vault's link structure.
 4. **Stay fresh**: auto-sync mirrors creates / edits / renames / deletes to the node
    (debounced). Renames and deletes discard the orphaned assertion
-   (`POST /api/assertion/{name}/discard`).
+   (`POST /api/knowledge-assets/{name}/wm/discard`).
 5. **Share, explicitly**: a note moves to **Shared Memory** only on a deliberate user
    action — *Share current note to a project*, or a folder→project rule the user
-   configured — which calls `POST /api/assertion/{name}/promote` to gossip the note's
+   configured — which calls `POST /api/knowledge-assets/{name}/swm/share` to gossip the note's
    triples into a project's Shared Memory for subscribed members.
 6. **Collaborate & discover**: create or join projects (curated/private or open), manage
    membership, and browse notes others have shared into a project you're subscribed to.

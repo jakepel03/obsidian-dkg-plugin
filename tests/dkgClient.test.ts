@@ -48,7 +48,15 @@ describe("DkgClient", () => {
     const { transport, calls } = mockTransport({ json: { discarded: true } });
     await new DkgClient("http://x", "t", transport).discardAssertion("cg", "obsidian-note-abc");
     expect(calls[0].method).toBe("POST");
-    expect(calls[0].url).toBe("http://x/api/assertion/obsidian-note-abc/discard");
+    expect(calls[0].url).toBe("http://x/api/knowledge-assets/obsidian-note-abc/wm/discard");
     expect(JSON.parse(String(calls[0].body))).toEqual({ contextGraphId: "cg" });
+  });
+
+  it("promoteAssertion POSTs to the swm/share route with entities: all", async () => {
+    const { transport, calls } = mockTransport({ json: { promotedCount: 3 } });
+    await new DkgClient("http://x", "t", transport).promoteAssertion("cg", "obsidian-note-abc");
+    expect(calls[0].method).toBe("POST");
+    expect(calls[0].url).toBe("http://x/api/knowledge-assets/obsidian-note-abc/swm/share");
+    expect(JSON.parse(String(calls[0].body))).toEqual({ contextGraphId: "cg", entities: "all" });
   });
 });

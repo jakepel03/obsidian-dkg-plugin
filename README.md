@@ -68,7 +68,7 @@ underneath, and you decide, note by note, what stays private and what gets share
 ## Requirements
 
 - **[Obsidian](https://obsidian.md/download)** 1.5.0 or newer.
-- A **local OriginTrail DKG v10 node**, up and running and reachable by the plugin (default `http://127.0.0.1:9200`), plus its **auth token**.
+- A **local OriginTrail DKG v10 node** (v10.0.0-rc.17 or newer), up and running and reachable by the plugin (default `http://127.0.0.1:9200`), plus its **auth token**.
 
 Installing and running the node is covered in the **[OriginTrail DKG repo](https://github.com/OriginTrail/dkg)**. Once it's running, grab its base URL and auth token; that's all the plugin needs to connect.
 
@@ -207,12 +207,12 @@ and `styles.css`. `main.js` is committed and CI fails if it drifts from source, 
 - `POST /api/context-graph/subscribe`: subscribe to a project
 - `POST /api/context-graph/{id}/request-join`, `/sign-join`, `/approve-join`, `/join-requests`: join flow
 - `GET  /api/context-graph/{id}/participants`, `POST .../add-participant`, `.../remove-participant`: membership / allowlist
-- `POST /api/assertion/{name}/import-file`: import a note as an assertion (Markdown upload)
-- `GET  /api/assertion/{name}/extraction-status`: extraction progress
-- `POST /api/assertion/{name}/promote`: promote an assertion to shared memory
-- `POST /api/assertion/{name}/discard`: remove an assertion (cleanup on rename / delete)
-- `POST /api/assertion/semantic-enrichment/write`: append resolved-wikilink triples with provenance
-- `POST /api/assertion/import-artifact/read-markdown`: read back an imported note's original Markdown (Discover)
+- `POST /api/knowledge-assets/{name}/wm/import-file`: import a note as an assertion (Markdown upload)
+- `GET  /api/knowledge-assets/{name}/wm/extraction-status`: extraction progress
+- `POST /api/knowledge-assets/{name}/swm/share`: share (promote) an assertion to shared memory
+- `POST /api/knowledge-assets/{name}/wm/discard`: remove an assertion (cleanup on rename / delete)
+- `POST /api/knowledge-assets/semantic-enrichment/write`: append resolved-wikilink triples with provenance
+- `POST /api/knowledge-assets/import-artifact/read-markdown`: read back an imported note's original Markdown (Discover)
 - `POST /api/query`: read-only SPARQL query
 
 </details>
