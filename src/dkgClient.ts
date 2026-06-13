@@ -1,6 +1,5 @@
 import type {
   AgentIdentity,
-  CatchupStatus,
   ContextGraphSummary,
   ExtractionStatusResponse,
   ImportResult,
@@ -100,28 +99,11 @@ export class DkgClient {
     });
   }
 
-  async subscribeToContextGraph(contextGraphId: string): Promise<{ catchup?: CatchupStatus }> {
+  async subscribeToContextGraph(contextGraphId: string): Promise<unknown> {
     return this.json("POST", "/api/context-graph/subscribe", {
       contextGraphId,
       includeSharedMemory: true,
-    }) as Promise<{ catchup?: CatchupStatus }>;
-  }
-
-  /**
-   * Poll the status of a context graph's catch-up (replication) job. Returns
-   * null when no job is tracked (e.g. catch-up already finished and was pruned),
-   * which callers treat as "no longer running".
-   */
-  async catchupStatus(contextGraphId: string): Promise<CatchupStatus | null> {
-    try {
-      const data = await this.json(
-        "GET",
-        `/api/sync/catchup-status?contextGraphId=${encodeURIComponent(contextGraphId)}`
-      );
-      return data as CatchupStatus;
-    } catch {
-      return null;
-    }
+    });
   }
 
   async listParticipants(contextGraphId: string): Promise<{ allowedAgents: string[] }> {

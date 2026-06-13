@@ -44,11 +44,6 @@ describe("DkgClient", () => {
     expect(rows).toEqual([{ s: "uri-1", name: '"Hello"' }]);
   });
 
-  it("catchupStatus returns null when the request fails (404, no job tracked)", async () => {
-    const { transport } = mockTransport({ status: 404, text: "no job" });
-    expect(await new DkgClient("http://x", "", transport).catchupStatus("cg")).toBeNull();
-  });
-
   it("discardAssertion POSTs the correct path and body", async () => {
     const { transport, calls } = mockTransport({ json: { discarded: true } });
     await new DkgClient("http://x", "t", transport).discardAssertion("cg", "obsidian-note-abc");
