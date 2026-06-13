@@ -106,6 +106,11 @@ export class DkgClient {
     });
   }
 
+  /** Drop the node's live subscription to a context graph (stops replication; the graph itself is untouched). */
+  async unsubscribeFromContextGraph(contextGraphId: string): Promise<unknown> {
+    return this.json("POST", "/api/context-graph/unsubscribe", { contextGraphId });
+  }
+
   async listParticipants(contextGraphId: string): Promise<{ allowedAgents: string[] }> {
     return this.json("GET", `/api/context-graph/${encodeURIComponent(contextGraphId)}/participants`) as any;
   }

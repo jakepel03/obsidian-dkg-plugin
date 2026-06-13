@@ -96,8 +96,20 @@ export class OriginTrailSettingTab extends PluginSettingTab {
             .setButtonText("Remove")
             .setWarning()
             .onClick(async () => {
+              // Best-effort: stop the node from replicating the graph too. A
+              // failure (node offline) must not block the local removal.
+              try {
+                await this.plugin.client().unsubscribeFromContextGraph(cg.id);
+              } catch (err) {
+                console.warn(`[DKG] could not unsubscribe from ${cg.id}:`, err);
+              }
               this.plugin.settings.subscribedContextGraphs = this.plugin.settings.subscribedContextGraphs.filter(
                 (c) => c.id !== cg.id
+              );
+              // Folder rules into the removed project are meaningless now —
+              // drop them so they don't silently resume if the id is reused.
+              this.plugin.settings.folderDestinations = this.plugin.settings.folderDestinations.filter(
+                (r) => r.contextGraphId !== cg.id
               );
               await this.plugin.saveSettings();
               this.display();
