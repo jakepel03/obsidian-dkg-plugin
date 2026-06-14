@@ -1,11 +1,12 @@
 {
   "name": "obsidian-origintrail-dkg",
   "version": "0.1.0",
-  "description": "Obsidian plugin that syncs notes to a local OriginTrail DKG v10 node.",
+  "description": "Sync your notes to a local OriginTrail DKG node as a private, queryable knowledge graph, with optional sharing into collaborative projects.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc --noEmit --skipLibCheck && node esbuild.config.mjs production",
+    "release": "node version-bump.mjs",
     "deploy": "bash scripts/deploy-to-vault.sh",
     "test": "vitest run",
     "lint": "eslint src tests",
@@ -19,8 +20,7 @@
     "obsidian",
     "origintrail",
     "dkg",
-    "shared-memory",
-    "working-memory"
+    "knowledge-graph"
   ],
   "author": "Jaka Pelko",
   "license": "MIT",
