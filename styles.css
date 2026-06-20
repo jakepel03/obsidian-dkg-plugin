@@ -367,13 +367,6 @@
   font-size: 0.85em;
 }
 
-/* discoverModal: hint paragraph */
-.dkg-discover-hint {
-  color: var(--text-muted);
-  font-size: 0.85em;
-  margin: 0 0 10px;
-}
-
 /* discoverModal: search input */
 .dkg-search-input {
   width: 100%;
@@ -384,6 +377,78 @@
 .dkg-discover-status {
   color: var(--text-muted);
   font-size: 0.85em;
+}
+
+/* discoverModal: master-detail browser ------------------------------------- */
+
+/* Widen the modal so the two panes have room. */
+.dkg-browse-modal {
+  width: min(760px, 92vw);
+}
+
+/* Two-pane container: project rail + note list. */
+.dkg-browse {
+  display: flex;
+  gap: 12px;
+  min-height: 320px;
+  max-height: 60vh;
+}
+
+/* Left rail of projects. */
+.dkg-browse-rail {
+  flex: 0 0 38%;
+  max-width: 250px;
+  overflow-y: auto;
+  padding-right: 8px;
+  border-right: 1px solid var(--background-modifier-border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dkg-browse-proj {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.dkg-browse-proj:hover {
+  background: var(--background-modifier-hover);
+}
+.dkg-browse-proj.is-active {
+  background: color-mix(in srgb, var(--interactive-accent) 16%, transparent);
+}
+.dkg-browse-proj .label {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--font-medium);
+}
+
+/* Right pane: selected project's notes. */
+.dkg-browse-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+}
+.dkg-browse-main-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+.dkg-browse-main-title {
+  font-size: 1.05em;
+  font-weight: var(--font-semibold, 600);
+}
+.dkg-browse-note-info {
+  color: var(--text-muted);
+  font-size: 0.85em;
+  margin: 2px 0 10px;
 }
 
 /* wizard.ts: progress indicator wrapper */

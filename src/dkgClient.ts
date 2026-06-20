@@ -1,11 +1,33 @@
 import type {
   AgentIdentity,
   ContextGraphSummary,
+  CreateContextGraphResult,
   ExtractionStatusResponse,
   ImportResult,
   ProjectReadiness,
   RequestTransport,
 } from "./types";
+
+/**
+ * Reject after `ms` if `p` hasn't settled. Obsidian's requestUrl has no AbortSignal,
+ * so the underlying request keeps running, but the caller is unblocked — used to stop a
+ * slow P2P byte-read from hanging the UI when it can't be cancelled.
+ */
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      }
+    );
+  });
+}
 
 export class DkgClient {
   constructor(
@@ -63,23 +85,47 @@ export class DkgClient {
   }
 
   /**
-   * Create a context graph. Policy semantics (verified against DKG rc.17):
+   * Create a context graph. Policy semantics (verified against DKG rc.18):
    *  - `accessPolicy`: 0 = public (anyone can subscribe), 1 = private (allowlist).
    *  - `publishPolicy`: 0 = curated (only allowlisted agents write), 1 = open (any subscriber writes).
    * Defaults to a private vault graph (`accessPolicy: 1`).
+   *
+   * `register: true` also commits the CG on-chain in the same call. This is required for
+   * PUBLIC/open projects so members can read shared note *content*: the node's
+   * import-artifact read-guard only drops the owner check for a CG that is registered
+   * public+open on-chain (verified live on rc.18). Registration is one-time and gas-only
+   * — it does NOT publish notes to Verifiable Memory.
    */
   async createContextGraph(
     id: string,
     name: string,
-    opts: { accessPolicy?: number; publishPolicy?: number; description?: string } = {}
-  ): Promise<unknown> {
+    opts: { accessPolicy?: number; publishPolicy?: number; description?: string; register?: boolean } = {}
+  ): Promise<CreateContextGraphResult> {
     return this.json("POST", "/api/context-graph/create", {
       id,
       name,
       description: opts.description ?? `Obsidian project for ${name}`,
       accessPolicy: opts.accessPolicy ?? 1,
       ...(opts.publishPolicy !== undefined ? { publishPolicy: opts.publishPolicy } : {}),
-    });
+      ...(opts.register ? { register: true } : {}),
+    }) as Promise<CreateContextGraphResult>;
+  }
+
+  /**
+   * Register an already-created context graph on-chain (one-time, gas-only — no VM publish).
+   * Used to retry registration for a PUBLIC/open project whose create-time registration
+   * didn't land (e.g. the CG already existed locally). Returns the on-chain id on success.
+   */
+  async registerContextGraph(
+    id: string,
+    accessPolicy: number,
+    publishPolicy: number
+  ): Promise<{ registered?: string; onChainId?: string }> {
+    return this.json("POST", "/api/context-graph/register", {
+      id,
+      accessPolicy,
+      publishPolicy,
+    }) as Promise<{ registered?: string; onChainId?: string }>;
   }
 
   async signJoinRequest(contextGraphId: string): Promise<any> {
@@ -190,11 +236,23 @@ export class DkgClient {
     ) as Promise<ExtractionStatusResponse>;
   }
 
-  /** Share an assertion's triples into Shared Memory (the route formerly named "promote"). */
+  /**
+   * Share an assertion's triples into Shared Memory (the route formerly named "promote").
+   *
+   * `skipSeal: true` performs an UNSEALED share. A default (sealed) share finalizes the
+   * assertion — recording a merkleRoot + author signature — which makes editing a note
+   * and re-sharing it fail with 500 ("already finalized with a different merkleRoot"),
+   * because re-finalizing edited content in place would break the recorded signature.
+   * The plugin's notes are mutable working content (no on-chain/VM publish), so sealing
+   * is the wrong model: we opt out. An unsealed share also clears any prior seal on the
+   * node side after it commits, so a note sealed by an earlier share self-heals on its
+   * next share. Older nodes that predate `skipSeal` (rc.18 and earlier) ignore the field.
+   */
   async promoteAssertion(contextGraphId: string, assertionName: string): Promise<unknown> {
     return this.json("POST", `/api/knowledge-assets/${encodeURIComponent(assertionName)}/swm/share`, {
       contextGraphId,
       entities: "all",
+      skipSeal: true,
     });
   }
 
@@ -267,6 +325,71 @@ export class DkgClient {
       // 404 = source bytes not replicated locally (cross-node); reconstruct instead.
       return null;
     }
+  }
+
+  /**
+   * Fetch a shared note's full Markdown via the generic artifact reader. Unlike
+   * `readImportedMarkdown` (local-only), this pulls the source bytes from a peer over
+   * P2P and caches them — so it returns a project member's real prose, not a stub.
+   *
+   * Works cross-node for any project the requesting node is a member of: PUBLIC+open
+   * projects via open serve, and curated/private projects via the node's authorized-read
+   * path (it verifies the requester is on the CG allowlist; requires a node new enough to
+   * support curated byte-reads — landed post-rc.18). When the source bytes can't be
+   * reached (curator unreachable, or an older node), the node returns `denied`/
+   * `unavailable` and this resolves to `null` so the caller falls back to a stub.
+   *
+   * `sourcePeerId` pins the fetch at a specific peer (the curator). The node tries it
+   * FIRST and returns as soon as it yields the bytes, instead of probing every connected
+   * peer sequentially (each bounded by a ~90s node-side timeout — the cause of multi-minute
+   * "Forking…" hangs on a busy network). For curated projects the curator is the author, so
+   * pinning is always correct; if the pinned peer can't serve it, the node still falls back
+   * to peer discovery.
+   *
+   * The P2P fetch can still be slow or stall, so each page is bounded by `pageTimeoutMs`;
+   * on timeout we resolve to `null` and the caller reconstructs a stub rather than spinning
+   * forever.
+   */
+  async readArtifactMarkdown(
+    contextGraphId: string,
+    assertionUri: string,
+    sourcePeerId?: string,
+    pageTimeoutMs = 15000
+  ): Promise<string | null> {
+    const decode = (b64: string): string => {
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return new TextDecoder().decode(bytes);
+    };
+    let offset = 0;
+    let out = "";
+    // Notes are normally one page (~1MB cap); loop only if a large note is chunked.
+    for (let page = 0; page < 64; page++) {
+      let data: any;
+      try {
+        data = await withTimeout(
+          this.json("POST", "/api/knowledge-assets/import-artifact/read", {
+            contextGraphId,
+            assertionUri,
+            kind: "markdown",
+            offset,
+            ...(sourcePeerId ? { sourcePeerId } : {}),
+          }),
+          pageTimeoutMs,
+          "artifact byte-read"
+        );
+      } catch {
+        return null;
+      }
+      const status = data?.status;
+      if (status !== "local" && status !== "fetched" && status !== "unverified") return null;
+      if (typeof data?.bytesB64 !== "string") return null;
+      out += decode(data.bytesB64);
+      if (!data.truncated || typeof data.nextOffset !== "number" || data.nextOffset <= offset) break;
+      offset = data.nextOffset;
+    }
+    return out;
   }
 
   private async json(method: string, path: string, body?: unknown): Promise<unknown> {
