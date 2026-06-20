@@ -5,6 +5,12 @@ export interface SubscribedContextGraph {
   name: string;
   role: "owner" | "member";
   curated?: boolean;
+  /**
+   * The curator's libp2p peer id, captured from the invite code at join time.
+   * Used to pin on-demand artifact byte-reads (Fork) straight at the curator
+   * instead of letting the node probe every connected peer sequentially.
+   */
+  curatorPeerId?: string;
 }
 
 /** A folder whose notes are shared to a project by default (e.g. `Team/` → research-team). */
@@ -41,6 +47,18 @@ export const DEFAULT_SETTINGS: OriginTrailSettings = {
 };
 
 export type RequestTransport = (request: RequestUrlParam) => Promise<RequestUrlResponse>;
+
+/** Response from creating (and optionally on-chain registering) a context graph. */
+export interface CreateContextGraphResult {
+  created?: string;
+  uri?: string;
+  /** True when on-chain registration succeeded (only requested for public/open projects). */
+  registered?: boolean;
+  /** The on-chain id assigned at registration. */
+  onChainId?: string;
+  /** Present when on-chain registration was attempted but failed (e.g. an unfunded node wallet). */
+  registerError?: string;
+}
 
 export interface ContextGraphSummary {
   id: string;

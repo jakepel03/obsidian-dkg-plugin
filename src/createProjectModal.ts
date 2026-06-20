@@ -1,5 +1,7 @@
 import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
 import type OriginTrailDkgPlugin from "./main";
+import type { DkgClient } from "./dkgClient";
+import type { CreateContextGraphResult } from "./types";
 import { slugifyContextGraphId } from "./identity";
 import { errorMessage } from "./utils";
 
@@ -72,16 +74,21 @@ export class CreateProjectModal extends Modal {
       const cgId = slugifyContextGraphId(this.name);
 
       // Curated: private allowlist + curated write. Open: public subscribe + open write.
-      const createFn =
-        this.mode === "curated"
-          ? () => client.createContextGraph(cgId, this.name, { accessPolicy: 1, publishPolicy: 0 })
-          : () => client.createContextGraph(cgId, this.name, { accessPolicy: 0, publishPolicy: 1 });
-
+      // Open projects are also registered on-chain (gas-only, no VM publish) so members
+      // can read shared note content — see ensureRegistered.
+      const isOpen = this.mode === "open";
+      let createResult: CreateContextGraphResult | undefined;
       try {
-        await createFn();
+        createResult = isOpen
+          ? await client.createContextGraph(cgId, this.name, { accessPolicy: 0, publishPolicy: 1, register: true })
+          : await client.createContextGraph(cgId, this.name, { accessPolicy: 1, publishPolicy: 0 });
       } catch (err) {
         const msg = errorMessage(err);
         if (!/409|conflict|already/i.test(msg)) throw err;
+      }
+
+      if (isOpen) {
+        await this.ensureRegistered(client, cgId, createResult);
       }
 
       this.inviteCode = this.mode === "curated" ? `${cgId}\n${identity.peerId}` : cgId;
@@ -105,6 +112,33 @@ export class CreateProjectModal extends Modal {
       new Notice(`Failed to create project: ${errorMessage(err)}`, 10000);
       btn.setButtonText("Create project").setDisabled(false);
     }
+  }
+
+  /**
+   * Open/public projects must be registered on-chain for members to read shared note
+   * content — the node's import-artifact read-guard only drops the owner check for a CG
+   * registered public+open on-chain (verified live on rc.18). Registration is one-time and
+   * gas-only — it does NOT publish notes to Verifiable Memory. Best-effort: if it fails
+   * (e.g. the node wallet isn't funded) the project still works locally for triples, but
+   * members can't pull note content until it's registered.
+   */
+  private async ensureRegistered(
+    client: DkgClient,
+    cgId: string,
+    createResult: CreateContextGraphResult | undefined
+  ): Promise<void> {
+    if (createResult?.registered === true || createResult?.onChainId) return;
+    try {
+      if ((await client.registerContextGraph(cgId, 0, 1)).onChainId) return;
+    } catch {
+      // fall through to the warning
+    }
+    const reason = createResult?.registerError ? ` Reason: ${createResult.registerError}.` : "";
+    new Notice(
+      "Project created, but on-chain registration failed, so members won't be able to read shared note content yet." +
+        `${reason} Make sure your node's wallet is funded, then recreate the project.`,
+      14000
+    );
   }
 
   private renderCreated() {

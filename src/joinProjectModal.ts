@@ -6,6 +6,7 @@ import { errorMessage, parseInviteCode, sleep } from "./utils";
 export class JoinProjectModal extends Modal {
   private inviteCode = "";
   private cgId = "";
+  private curatorPeerId = "";
   private pendingAgentAddress = "";
 
   constructor(
@@ -57,6 +58,7 @@ export class JoinProjectModal extends Modal {
       const client = this.plugin.client();
       const identity = await client.getIdentity();
       this.cgId = cgId;
+      this.curatorPeerId = curatorPeerId;
       this.pendingAgentAddress = identity.agentAddress;
 
       if (curatorPeerId) {
@@ -139,7 +141,16 @@ export class JoinProjectModal extends Modal {
     // list regardless of whether we observe it finish here.
     const already = this.plugin.settings.subscribedContextGraphs.find((c) => c.id === this.cgId);
     if (!already) {
-      this.plugin.settings.subscribedContextGraphs.push({ id: this.cgId, name: this.cgId, role: "member" });
+      this.plugin.settings.subscribedContextGraphs.push({
+        id: this.cgId,
+        name: this.cgId,
+        role: "member",
+        curatorPeerId: this.curatorPeerId || undefined,
+      });
+      await this.plugin.saveSettings();
+    } else if (this.curatorPeerId && !already.curatorPeerId) {
+      // Backfill the curator peer id for a project subscribed before we tracked it.
+      already.curatorPeerId = this.curatorPeerId;
       await this.plugin.saveSettings();
     }
     this.onDone?.();
