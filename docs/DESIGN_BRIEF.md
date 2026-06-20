@@ -122,16 +122,9 @@ registry entry use the canonical v10 terms.
 
 These are surfaced so the model is faithful, not glossed:
 
-- **Shared-note edits are effectively publish-once today.** Re-promoting an edited note
-  updates the curator's own Shared Memory but receivers de-dupe the gossip as a replay, so
-  collaborative *live editing* of shared notes does not yet propagate. This is a DKG-side
-  replication gap, not a plugin choice.
-- **No remote retraction.** Making a note private / deleting it cleans your own node; copies
-  already gossiped to peers age out only via the Shared-Memory TTL (~30 days) and a peer's
-  already-synced local copy can persist. The plugin states this honestly on unshare/delete.
-- **Cross-node source bytes aren't always replicated** — Shared Memory gossips triples, not
-  the original Markdown file. Discover reconstructs a peer's note from its triples when the
-  source bytes aren't local.
+- **No remote retraction.** Making a note private or deleting it cleans your own node, but a
+  copy already gossiped to a peer ages out only via the Shared-Memory TTL (~30 days), and a
+  peer's already-synced copy can persist. The plugin states this honestly on unshare/delete.
 
 ## 11. Demo
 
