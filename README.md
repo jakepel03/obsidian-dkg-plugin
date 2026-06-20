@@ -68,7 +68,7 @@ underneath, and you decide, note by note, what stays private and what gets share
 ## Requirements
 
 - **[Obsidian](https://obsidian.md/download)** 1.5.0 or newer.
-- A **local OriginTrail DKG v10 node** (v10.0.0-rc.17 or newer), up and running and reachable by the plugin (default `http://127.0.0.1:9200`), plus its **auth token**.
+- A **local OriginTrail DKG v10 node** (v10.0.0-rc.18 or newer), up and running and reachable by the plugin (default `http://127.0.0.1:9200`), plus its **auth token**.
 
 Installing and running the node is covered in the **[OriginTrail DKG repo](https://github.com/OriginTrail/dkg)**. Once it's running, grab its base URL and auth token; that's all the plugin needs to connect.
 
