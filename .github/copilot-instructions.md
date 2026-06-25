@@ -2,7 +2,7 @@
 
 ## Project
 
-Obsidian plugin (ID: `origintrail-shared-memory`) that syncs vault Markdown notes into an [OriginTrail DKG v10](https://github.com/OriginTrail/dkg) node as Working Memory assertions, with optional Shared Memory promotion.
+Obsidian plugin (ID: `origintrail-dkg`) that syncs vault Markdown notes into a local [OriginTrail DKG v10](https://github.com/OriginTrail/dkg) node as a private, queryable knowledge graph, with optional per-note sharing into collaborative projects.
 
 **Stack:** TypeScript (strict, ES2022) · pnpm · esbuild · Vitest · ESLint + Prettier
 
