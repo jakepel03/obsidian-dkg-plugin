@@ -5,7 +5,7 @@ import builtins from "builtin-modules";
 const prod = process.argv[2] === "production";
 
 const context = await esbuild.context({
-  banner: { js: "/* OriginTrail Shared Memory for Obsidian */" },
+  banner: { js: "/* OriginTrail DKG for Obsidian */" },
   entryPoints: ["src/main.ts"],
   bundle: true,
   external: ["obsidian", "electron", "@codemirror/*", "@lezer/*", ...builtins],

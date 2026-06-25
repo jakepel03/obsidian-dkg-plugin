@@ -139,21 +139,37 @@ export default class OriginTrailDkgPlugin extends Plugin {
 
   async loadSettings() {
     const stored = ((await this.loadData()) ?? {}) as Record<string, unknown>;
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, stored);
+    // Clone the defaults so the merged settings never share array/object
+    // references with the module-level DEFAULT_SETTINGS — otherwise mutating
+    // e.g. settings.subscribedContextGraphs would leak back into the defaults.
+    this.settings = Object.assign(structuredClone(DEFAULT_SETTINGS), stored);
 
     // Migrate legacy keys, then drop them so they stop being persisted:
     //  - `autoPromote`: the global "promote everything" switch was replaced by
     //    explicit per-note / per-folder sharing.
     //  - `hasSeenPowerUpPrompt` → `hasCompletedSetup` (renamed).
     const legacy = this.settings as unknown as Record<string, unknown>;
-    delete legacy.autoPromote;
-    if (stored.hasSeenPowerUpPrompt !== undefined && stored.hasCompletedSetup === undefined) {
-      this.settings.hasCompletedSetup = Boolean(stored.hasSeenPowerUpPrompt);
+    let migrated = false;
+    if (legacy.autoPromote !== undefined) {
+      delete legacy.autoPromote;
+      migrated = true;
     }
-    delete legacy.hasSeenPowerUpPrompt;
+    if (stored.hasSeenPowerUpPrompt !== undefined) {
+      if (stored.hasCompletedSetup === undefined) {
+        this.settings.hasCompletedSetup = Boolean(stored.hasSeenPowerUpPrompt);
+      }
+      delete legacy.hasSeenPowerUpPrompt;
+      migrated = true;
+    }
 
-    if (!this.settings.vaultId) this.settings.vaultId = makeVaultId();
-    await this.saveSettings();
+    if (!this.settings.vaultId) {
+      this.settings.vaultId = makeVaultId();
+      migrated = true;
+    }
+
+    // Only write back when a migration ran or we minted a vaultId — don't
+    // rewrite data.json on every plugin load.
+    if (migrated) await this.saveSettings();
   }
 
   async saveSettings() {

@@ -12,7 +12,7 @@ NODE2_PORT    := 9201
 NODE2_OXI_PORT := 7879  # node1 uses the default 7878; node2 needs a different port
 
 # ── DKG CLI selection ────────────────────────────────────────────────────────
-# Default: the npm-global `dkg` (currently rc.18). Pass SRC=1 to run the CLI built
+# Default: the published npm-global `dkg`. Pass SRC=1 to run the CLI built
 # from the local dkg/ source checkout instead — e.g. to test fixes on main that
 # aren't in a published rc yet (curated/private byte-reads). Build it once first
 # with `make dkg-src-build`. Monorepo mode suppresses auto-update, and an explicit
