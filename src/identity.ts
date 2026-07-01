@@ -38,7 +38,20 @@ export function makeAssertionUri(contextGraphId: string, agentAddress: string, a
   return `did:dkg:context-graph:${contextGraphId}/assertion/${agentAddress}/${assertionName}`;
 }
 
-export function makeVaultId(): string {
+/**
+ * Stable per-vault id. Derived deterministically from the vault's location
+ * (seed = filesystem base path, or vault name as a fallback) so a plugin-data
+ * reset re-derives the SAME id and re-imports land on the existing assertion
+ * names — a random id here once orphaned a whole vault graph after a data
+ * reset, and context graphs can't be deleted (#66). Existing persisted ids
+ * are never re-derived; this only runs when data.json has no vaultId.
+ */
+export async function makeVaultId(seed: string): Promise<string> {
+  const trimmed = seed.trim();
+  if (trimmed) {
+    const hash = await sha256Hex(`obsidian-vault:${trimmed}`);
+    return `vault-${hash.slice(0, 16)}`;
+  }
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
   }

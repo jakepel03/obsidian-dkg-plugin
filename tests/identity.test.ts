@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { makeAssertionName, makeAssertionUri, normalizeVaultPath, slugifyContextGraphId } from "../src/identity";
+import {
+  makeAssertionName,
+  makeAssertionUri,
+  makeVaultId,
+  normalizeVaultPath,
+  slugifyContextGraphId,
+} from "../src/identity";
 
 describe("identity helpers", () => {
   it("slugifies vault names into stable context graph ids", () => {
@@ -35,6 +41,26 @@ describe("identity helpers", () => {
     const a = await makeAssertionName("vault-1", "Folder/Note.md");
     const b = await makeAssertionName("vault-2", "Folder/Note.md");
     expect(a).not.toBe(b);
+  });
+
+  it("derives the same vault id from the same seed (reset-proof)", async () => {
+    const a = await makeVaultId("/home/user/Vaults/Research");
+    const b = await makeVaultId("/home/user/Vaults/Research");
+    expect(a).toBe(b);
+    expect(a).toMatch(/^vault-[a-f0-9]{16}$/);
+  });
+
+  it("derives different vault ids for different seeds", async () => {
+    const a = await makeVaultId("/home/user/Vaults/Research");
+    const b = await makeVaultId("/home/user/Vaults/Journal");
+    expect(a).not.toBe(b);
+  });
+
+  it("falls back to a random vault id when no seed is available", async () => {
+    const a = await makeVaultId("");
+    const b = await makeVaultId("   ");
+    expect(a).not.toBe(b);
+    expect(a.length).toBeGreaterThan(0);
   });
 
   it("builds the canonical assertion entity URI", () => {
