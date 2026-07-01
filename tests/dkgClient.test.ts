@@ -52,6 +52,25 @@ describe("DkgClient", () => {
     expect(JSON.parse(String(calls[0].body))).toEqual({ contextGraphId: "cg" });
   });
 
+  it("registerContextGraph POSTs id and policies, returning the on-chain result", async () => {
+    const { transport, calls } = mockTransport({ json: { registered: "my-project", onChainId: "42" } });
+    const res = await new DkgClient("http://x", "t", transport).registerContextGraph("my-project", 0, 1);
+    expect(calls[0].method).toBe("POST");
+    expect(calls[0].url).toBe("http://x/api/context-graph/register");
+    expect(JSON.parse(String(calls[0].body))).toEqual({ id: "my-project", accessPolicy: 0, publishPolicy: 1 });
+    expect(res.onChainId).toBe("42");
+  });
+
+  it("registerContextGraph surfaces the 409 already-registered body in the thrown error", async () => {
+    const { transport } = mockTransport({
+      status: 409,
+      text: JSON.stringify({ error: 'Context graph "my-project" is already registered on-chain' }),
+    });
+    await expect(new DkgClient("http://x", "t", transport).registerContextGraph("my-project", 0, 1)).rejects.toThrow(
+      /already registered/i
+    );
+  });
+
   it("promoteAssertion POSTs a sealed share (entities: all, no skipSeal) to swm/share", async () => {
     const { transport, calls } = mockTransport({ json: { promotedCount: 3 } });
     await new DkgClient("http://x", "t", transport).promoteAssertion("cg", "obsidian-note-abc");

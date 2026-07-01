@@ -323,18 +323,31 @@ export class DkgDashboardView extends ItemView {
 
   /** Retry the on-chain registration of an open project (see GH#65). */
   private async retryRegistration(cg: SubscribedContextGraph): Promise<void> {
+    const markRegistered = async (msg: string) => {
+      cg.registered = true;
+      await this.plugin.saveSettings();
+      new Notice(msg);
+      this.render();
+    };
     try {
       const res = await this.plugin.client().registerContextGraph(cg.id, 0, 1);
       if (res.onChainId || res.registered) {
-        cg.registered = true;
-        await this.plugin.saveSettings();
-        new Notice(`"${cg.name || cg.id}" is now registered on-chain — members can read full note content.`);
-        this.render();
+        await markRegistered(`"${cg.name || cg.id}" is now registered on-chain — members can read full note content.`);
       } else {
         new Notice("Registration didn't complete — check your node's wallet balance and try again.", 10000);
       }
     } catch (err) {
-      new Notice(`Registration failed: ${errorMessage(err)}`, 10000);
+      const msg = errorMessage(err);
+      // The node 409s with "already registered" when the CG already has an
+      // on-chain slot (e.g. a prior attempt's tx landed but its receipt was
+      // missed) — that's the goal state, not a failure.
+      if (/already registered/i.test(msg)) {
+        await markRegistered(
+          `"${cg.name || cg.id}" was already registered on-chain — members can read full note content.`
+        );
+        return;
+      }
+      new Notice(`Registration failed: ${msg}`, 10000);
     }
   }
 

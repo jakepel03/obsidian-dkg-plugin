@@ -149,8 +149,11 @@ export class CreateProjectModal extends Modal {
     if (createResult?.registered === true || createResult?.onChainId) return true;
     try {
       if ((await client.registerContextGraph(cgId, 0, 1)).onChainId) return true;
-    } catch {
-      // fall through to the warning
+    } catch (err) {
+      // A 409 "already registered" means the goal state is already reached
+      // (e.g. recreating a project whose earlier registration landed).
+      if (/already registered/i.test(errorMessage(err))) return true;
+      // otherwise fall through to the warning
     }
     const reason = createResult?.registerError ? ` Reason: ${createResult.registerError}.` : "";
     new Notice(
