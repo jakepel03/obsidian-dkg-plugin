@@ -118,7 +118,7 @@ registry entry use the canonical v10 terms.
 - Distributed as an Obsidian plugin (prebuilt `main.js` / `manifest.json` / `styles.css`
   committed to the repo); **no npm/postinstall machinery**.
 
-## 10. Honest current limitations (testnet beta)
+## 10. Honest current limitations
 
 These are surfaced so the model is faithful, not glossed:
 
