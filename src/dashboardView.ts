@@ -1,6 +1,7 @@
 import { ItemView, Notice, setIcon, setTooltip, WorkspaceLeaf } from "obsidian";
 import type OriginTrailDkgPlugin from "./main";
-import type { ProjectReadiness } from "./types";
+import type { ProjectReadiness, SubscribedContextGraph } from "./types";
+import { errorMessage } from "./utils";
 import { SetupWizardModal } from "./wizard";
 import { CreateProjectModal } from "./createProjectModal";
 import { JoinProjectModal } from "./joinProjectModal";
@@ -268,6 +269,24 @@ export class DkgDashboardView extends ItemView {
         );
         name.createSpan({ cls: "label", text: cg.name || cg.id }).setAttr("title", cg.id);
         if (cg.role === "owner") {
+          // Owner of an OPEN project whose create-time on-chain registration
+          // failed: members only get titles/links until it succeeds, so show
+          // the honest state and a retry instead of asking to recreate.
+          if (cg.curated === false && cg.registered === false) {
+            const chip = name.createSpan({ cls: "dkg-sync-chip warn", text: "Not registered" });
+            setTooltip(
+              chip,
+              "On-chain registration failed when this open project was created, so members can't read " +
+                "full note content yet (they still receive titles and links). Fund your node's wallet and retry."
+            );
+            btn(row, {
+              icon: "refresh-cw",
+              text: "Register",
+              ghost: true,
+              tooltip: "Retry the on-chain registration (may require a TRAC deposit on real networks).",
+              onClick: () => void this.retryRegistration(cg),
+            });
+          }
           btn(row, {
             icon: "settings-2",
             text: "Manage",
@@ -300,6 +319,23 @@ export class DkgDashboardView extends ItemView {
       tooltip: "Join a project using an invite code.",
       onClick: () => new JoinProjectModal(this.plugin, () => this.render()).open(),
     });
+  }
+
+  /** Retry the on-chain registration of an open project (see GH#65). */
+  private async retryRegistration(cg: SubscribedContextGraph): Promise<void> {
+    try {
+      const res = await this.plugin.client().registerContextGraph(cg.id, 0, 1);
+      if (res.onChainId || res.registered) {
+        cg.registered = true;
+        await this.plugin.saveSettings();
+        new Notice(`"${cg.name || cg.id}" is now registered on-chain — members can read full note content.`);
+        this.render();
+      } else {
+        new Notice("Registration didn't complete — check your node's wallet balance and try again.", 10000);
+      }
+    } catch (err) {
+      new Notice(`Registration failed: ${errorMessage(err)}`, 10000);
+    }
   }
 
   /** Readiness with a short TTL cache; `force` bypasses it (Resync, explicit re-check). */

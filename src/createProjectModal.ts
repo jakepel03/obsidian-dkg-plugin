@@ -41,6 +41,13 @@ export class CreateProjectModal extends Modal {
           .onChange((v) => (this.name = v.trim()))
       );
 
+    const modeHintText = () =>
+      this.mode === "open"
+        ? "Open projects are registered on-chain so members can read full note content. " +
+          "On real networks (mainnet/testnet) that registration can require a TRAC deposit " +
+          "paid by your node's wallet; on a local development chain it's free."
+        : "Curated projects are private and free — only members you approve receive shared notes.";
+
     new Setting(contentEl)
       .setName("Access mode")
       .setDesc("Curated: only invited agents can write. Open: any subscriber can write.")
@@ -49,8 +56,13 @@ export class CreateProjectModal extends Modal {
           .addOption("curated", "Curated (invite-only)")
           .addOption("open", "Open (any subscriber)")
           .setValue(this.mode)
-          .onChange((v) => (this.mode = v as "curated" | "open"))
+          .onChange((v) => {
+            this.mode = v as "curated" | "open";
+            modeHint.setText(modeHintText());
+          })
       );
+
+    const modeHint = contentEl.createEl("p", { cls: "dkg-hint", text: modeHintText() });
 
     new Setting(contentEl).addButton((btn) =>
       btn
@@ -88,8 +100,9 @@ export class CreateProjectModal extends Modal {
         if (!/409|conflict|already/i.test(msg)) throw err;
       }
 
+      let registeredOk: boolean | undefined;
       if (isOpen) {
-        await this.ensureRegistered(client, cgId, createResult);
+        registeredOk = await this.ensureRegistered(client, cgId, createResult);
       }
 
       this.inviteCode = this.mode === "curated" ? `${cgId}\n${identity.peerId}` : cgId;
@@ -103,7 +116,11 @@ export class CreateProjectModal extends Modal {
           name: this.name,
           role: "owner",
           curated: this.mode === "curated",
+          ...(registeredOk !== undefined ? { registered: registeredOk } : {}),
         });
+        await this.plugin.saveSettings();
+      } else if (registeredOk !== undefined && already.registered !== registeredOk) {
+        already.registered = registeredOk;
         await this.plugin.saveSettings();
       }
 
@@ -128,19 +145,21 @@ export class CreateProjectModal extends Modal {
     client: DkgClient,
     cgId: string,
     createResult: CreateContextGraphResult | undefined
-  ): Promise<void> {
-    if (createResult?.registered === true || createResult?.onChainId) return;
+  ): Promise<boolean> {
+    if (createResult?.registered === true || createResult?.onChainId) return true;
     try {
-      if ((await client.registerContextGraph(cgId, 0, 1)).onChainId) return;
+      if ((await client.registerContextGraph(cgId, 0, 1)).onChainId) return true;
     } catch {
       // fall through to the warning
     }
     const reason = createResult?.registerError ? ` Reason: ${createResult.registerError}.` : "";
     new Notice(
-      "Project created, but on-chain registration failed, so members won't be able to read shared note content yet." +
-        `${reason} Make sure your node's wallet is funded, then recreate the project.`,
+      "Project created, but on-chain registration failed. Members will still receive shared titles and links, " +
+        `but can't read full note content yet.${reason} Fund your node's wallet, then retry with the Register ` +
+        "button on the project's dashboard row.",
       14000
     );
+    return false;
   }
 
   private renderCreated() {

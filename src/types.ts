@@ -11,6 +11,12 @@ export interface SubscribedContextGraph {
    * instead of letting the node probe every connected peer sequentially.
    */
   curatorPeerId?: string;
+  /**
+   * On-chain registration state for OPEN projects the user owns. false = the
+   * create-time registration failed and can be retried from the dashboard;
+   * undefined = not applicable (curated, member role) or pre-existing entry.
+   */
+  registered?: boolean;
 }
 
 /** A folder whose notes are shared to a project by default (e.g. `Team/` → research-team). */
