@@ -15,9 +15,11 @@ Sync your Markdown notes into a local [OriginTrail DKG v10](https://github.com/O
 
 </div>
 
-> [!WARNING]
-> DKG v10 is release-candidate software on testnet. Expect iteration and breaking
-> changes. Use this plugin for testing and demos, not production-critical knowledge.
+> [!NOTE]
+> DKG v10 is live on **mainnet**. The plugin talks only to your own local node and works
+> entirely in its free memory layers, so regular use never spends TRAC. The one exception:
+> registering an **open (public)** project on-chain can require a TRAC deposit on real
+> networks — see [Privacy & safety](#privacy--safety).
 
 ---
 
@@ -68,17 +70,26 @@ underneath, and you decide, note by note, what stays private and what gets share
 ## Requirements
 
 - **[Obsidian](https://obsidian.md/download)** 1.5.0 or newer.
-- A **local OriginTrail DKG v10 node** (v10.0.0-rc.19 or newer), up and running and reachable by the plugin (default `http://127.0.0.1:9200`), plus its **auth token**. rc.19 is the first release where members of a *curated* project can fork a peer's full note content; on older nodes curated forks fall back to a title-and-links stub.
+- A **local OriginTrail DKG v10 node** (**v10.0.0 mainnet release or newer**), up and running and reachable by the plugin (default `http://127.0.0.1:9200`), plus its **auth token**. v10.0.0 is the first stable release where members of a *curated* project can fork a peer's full note content; on older release-candidate nodes curated forks fall back to a title-and-links stub.
 
-Installing and running the node is covered in the **[OriginTrail DKG repo](https://github.com/OriginTrail/dkg)**. Once it's running, grab its base URL and auth token; that's all the plugin needs to connect.
+Installing and running the node is covered in the **[OriginTrail DKG repo](https://github.com/OriginTrail/dkg)** (`npm install -g @origintrail-official/dkg` installs the stable mainnet release). Once it's running, grab its base URL and auth token; that's all the plugin needs to connect.
 
 ## Installation
 
-> A Community Plugins / BRAT listing is on the [roadmap](#roadmap). For now, install
-> directly from this repo: the built plugin (`main.js`, `manifest.json`,
-> `styles.css`) is committed and kept current by CI, so **no build step is needed.**
+> A Community Plugins listing is on the [roadmap](#roadmap). Until then, install via
+> BRAT or directly from this repo: the built plugin (`main.js`, `manifest.json`,
+> `styles.css`) is published on every [GitHub Release](https://github.com/jakepel03/obsidian-dkg-plugin/releases)
+> and committed to the repo, so **no build step is needed.**
 
-### Option A: one command (recommended)
+### Option A: BRAT (recommended)
+
+1. Install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin from Community Plugins.
+2. Run **BRAT: Add a beta plugin for testing** and enter `jakepel03/obsidian-dkg-plugin`.
+3. Enable **OriginTrail DKG** under **Settings → Community plugins**.
+
+BRAT installs the latest GitHub Release and keeps the plugin updated.
+
+### Option B: one command
 
 From a clone of this repo, point `install` at your vault:
 
@@ -89,9 +100,10 @@ make install VAULT="/path/to/your vault"
 This copies the plugin into `<vault>/.obsidian/plugins/origintrail-dkg/`. Then enable
 it in Obsidian under **Settings → Community plugins** (turn off Restricted mode if asked).
 
-### Option B: manual
+### Option C: manual
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from this repo.
+1. Download `main.js`, `manifest.json`, and `styles.css` from the
+   [latest release](https://github.com/jakepel03/obsidian-dkg-plugin/releases/latest) (or from this repo).
 2. Copy them into your vault at:
 
    ```text
@@ -137,6 +149,13 @@ debounce, so the graph tracks your latest writing without syncing on every keyst
 **Collaborate.** Create a project to share into, or join someone else's. Subscribed
 projects show their sync/readiness state, and **Discover** lets you browse notes others
 have shared into a project you've joined.
+
+> [!IMPORTANT]
+> New projects are **curated** (invite-only) by default, which is free. Choosing an
+> **open (public)** project additionally registers it on-chain so anyone can subscribe and
+> read its shared content — and on real networks (mainnet/testnet) that registration can
+> require a **TRAC deposit**, paid from your node's wallet. On a local development chain
+> registration is free.
 
 <div align="center">
 <img width="760" alt="Creating a shared project to publish notes into" src="docs/images/create-shared-project.png" />
@@ -204,7 +223,7 @@ and `styles.css`. `main.js` is committed and CI fails if it drifts from source, 
 - `GET  /api/agent/identity`: local agent identity
 - `GET  /api/context-graph/list`: list context graphs (projects)
 - `POST /api/context-graph/create`: create a project
-- `POST /api/context-graph/register`: register a public/open project on-chain (one-time, gas-only) so members can read shared note content
+- `POST /api/context-graph/register`: register a public/open project on-chain so members can read shared note content (one-time; may require a TRAC registration deposit on real networks)
 - `POST /api/context-graph/subscribe`: subscribe to a project
 - `POST /api/context-graph/unsubscribe`: drop a project subscription
 - `POST /api/context-graph/{id}/request-join`, `/sign-join`, `/approve-join`, `/reject-join`, `/join-requests`: join flow
@@ -225,11 +244,13 @@ and `styles.css`. `main.js` is committed and CI fails if it drifts from source, 
 - Notes are imported into your **own node's** vault graph and stay private there.
 - Sharing is **opt-in and explicit**, per note or per folder; nothing is published automatically.
 - The DKG auth token is stored only in the vault's local plugin data, never transmitted elsewhere.
-- On-chain / verified publishing is intentionally out of scope for this beta.
+- Regular use never spends TRAC: notes flow through the node's free memory layers. The single
+  on-chain action is registering an **open (public)** project, which on real networks may
+  require a TRAC registration deposit from your node's wallet.
+- On-chain / Verified Memory publishing is intentionally out of scope.
 
 ## Roadmap
 
-- GitHub Release with prebuilt assets + [BRAT](https://github.com/TfTHacker/obsidian42-brat) install.
 - Obsidian Community Plugins submission.
 - Friendlier in-plugin DKG token discovery.
 

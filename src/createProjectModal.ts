@@ -74,8 +74,9 @@ export class CreateProjectModal extends Modal {
       const cgId = slugifyContextGraphId(this.name);
 
       // Curated: private allowlist + curated write. Open: public subscribe + open write.
-      // Open projects are also registered on-chain (gas-only, no VM publish) so members
-      // can read shared note content — see ensureRegistered.
+      // Open projects are also registered on-chain (no VM publish; on real networks this
+      // can require a TRAC registration deposit from the node's wallet) so members can
+      // read shared note content — see ensureRegistered.
       const isOpen = this.mode === "open";
       let createResult: CreateContextGraphResult | undefined;
       try {
@@ -117,10 +118,11 @@ export class CreateProjectModal extends Modal {
   /**
    * Open/public projects must be registered on-chain for members to read shared note
    * content — the node's import-artifact read-guard only drops the owner check for a CG
-   * registered public+open on-chain (verified live on rc.18). Registration is one-time and
-   * gas-only — it does NOT publish notes to Verifiable Memory. Best-effort: if it fails
-   * (e.g. the node wallet isn't funded) the project still works locally for triples, but
-   * members can't pull note content until it's registered.
+   * registered public+open on-chain. Registration is one-time and does NOT publish notes
+   * to Verifiable Memory, but on real networks it can require a TRAC registration deposit
+   * from the node's wallet (free on a local dev chain). Best-effort: if it fails (e.g. the
+   * node wallet isn't funded) the project still works locally for triples, but members
+   * can't pull note content until it's registered.
    */
   private async ensureRegistered(
     client: DkgClient,

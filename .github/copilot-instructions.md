@@ -69,8 +69,8 @@ When reviewing a pull request, check for:
 
 ## Known limitations
 
-- MVP v0.1.0 — no GitHub Releases ZIP; users install manually.
-- DKG v10 is RC software on testnet — API may change.
+- GitHub Releases ship the prebuilt assets (`release.yml` on version tags); not yet listed in Obsidian Community Plugins.
+- Targets DKG v10 mainnet (v10.0.0 or newer); the plugin only calls the local node's HTTP API.
 - Extraction polling: 20 retries × 750 ms ≈ 15 s timeout.
 - Verified Memory / on-chain publishing is out of scope.
 
