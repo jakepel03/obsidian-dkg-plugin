@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveRouting, type SyncOptions } from "../src/noteSync";
+import { isReceivedSharedNote, resolveRouting, type SyncOptions } from "../src/noteSync";
 
 const base: SyncOptions = {
   primaryContextGraphId: "my-vault",
@@ -91,5 +91,67 @@ describe("resolveRouting (private by default, share to a destination)", () => {
       ],
     };
     expect(resolveRouting("Team/ML/Model.md", undefined, opts).contextGraphId).toBe("research-team");
+  });
+});
+
+describe("implicit shared-folder rule (a project is a folder)", () => {
+  const opts: SyncOptions = { ...base, sharedFolderRoot: "Shared Projects" };
+
+  it("shares a note placed inside a project's folder to that project", () => {
+    expect(resolveRouting("Shared Projects/Research Team/Idea.md", undefined, opts)).toEqual({
+      contextGraphId: "research-team",
+      promote: true,
+    });
+    // Subfolders inside the project folder share too.
+    expect(resolveRouting("Shared Projects/Research Team/Drafts/Idea.md", undefined, opts).contextGraphId).toBe(
+      "research-team"
+    );
+  });
+
+  it("keeps notes private outside a known project folder", () => {
+    // Unknown project folder (e.g. after leaving the project).
+    expect(resolveRouting("Shared Projects/Old Project/Idea.md", undefined, opts).promote).toBe(false);
+    // Directly in the root, not in any project folder.
+    expect(resolveRouting("Shared Projects/Idea.md", undefined, opts).promote).toBe(false);
+    // No root configured (e.g. options built without settings).
+    expect(resolveRouting("Shared Projects/Research Team/Idea.md", undefined, base).promote).toBe(false);
+  });
+
+  it("lets shared_to and explicit folder rules take precedence", () => {
+    const withRule: SyncOptions = {
+      ...opts,
+      folderDestinations: [{ folder: "Shared Projects/Research Team/", contextGraphId: "ml-notes" }],
+    };
+    expect(
+      resolveRouting("Shared Projects/Research Team/Idea.md", { shared_to: "ml-notes" }, opts).contextGraphId
+    ).toBe("ml-notes");
+    expect(resolveRouting("Shared Projects/Research Team/Idea.md", undefined, withRule).contextGraphId).toBe(
+      "ml-notes"
+    );
+  });
+
+  it("matches the sanitized folder name the materializer creates", () => {
+    const weird: SyncOptions = {
+      ...opts,
+      subscribedContextGraphs: [{ id: "ab", name: "A/B: Testing?", role: "member" }],
+    };
+    expect(resolveRouting("Shared Projects/A_B_ Testing_/Note.md", undefined, weird).contextGraphId).toBe("ab");
+  });
+});
+
+describe("isReceivedSharedNote (echo prevention)", () => {
+  it("flags notes tracked by the materializer state", () => {
+    expect(
+      isReceivedSharedNote(undefined, "Shared Projects/Team/Note.md", new Set(["Shared Projects/Team/Note.md"]))
+    ).toBe(true);
+  });
+
+  it("flags notes carrying dkg_author provenance even outside the folder", () => {
+    expect(isReceivedSharedNote({ dkg_author: "0xabc" }, "Anywhere/Adopted.md")).toBe(true);
+  });
+
+  it("does not flag the user's own notes inside a project folder", () => {
+    expect(isReceivedSharedNote({ title: "Mine" }, "Shared Projects/Team/Mine.md", new Set())).toBe(false);
+    expect(isReceivedSharedNote(undefined, "Shared Projects/Team/Mine.md")).toBe(false);
   });
 });

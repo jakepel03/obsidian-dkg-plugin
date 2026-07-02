@@ -194,7 +194,10 @@ export class JoinProjectModal extends Modal {
     contentEl.empty();
     contentEl.createEl("h2", { text: "Joined!" });
     contentEl.createEl("p", {
-      text: `You're fully synced to "${this.cgId}". Promoted notes from the project are available on this node, and the curator can now share notes to you.`,
+      text:
+        `You're fully synced to "${this.cgId}". Members' shared notes will appear under ` +
+        `"${this.plugin.settings.sharedFolderRoot}" in your vault — and any note you place in that ` +
+        `project's folder is shared with the project.`,
     });
     new Setting(contentEl).addButton((btn) =>
       btn
