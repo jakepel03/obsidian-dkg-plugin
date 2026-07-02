@@ -70,8 +70,8 @@ export class CreateProjectModal extends Modal {
       body.createDiv({
         text: open
           ? "Open projects are registered on-chain so members can read full note content. " +
-            "On real networks (mainnet/testnet) that registration can require a TRAC deposit " +
-            "paid by your node's wallet; on a local development chain it's free."
+            "Registration takes a one-time TRAC deposit from your node's wallet — " +
+            "real TRAC on mainnet, free faucet TRAC on testnet."
           : "Only members you approve receive shared notes. No on-chain registration, no cost.",
       });
     };
@@ -149,8 +149,8 @@ export class CreateProjectModal extends Modal {
    * Open/public projects must be registered on-chain for members to read shared note
    * content — the node's import-artifact read-guard only drops the owner check for a CG
    * registered public+open on-chain. Registration is one-time and does NOT publish notes
-   * to Verifiable Memory, but on real networks it can require a TRAC registration deposit
-   * from the node's wallet (free on a local dev chain). Best-effort: if it fails (e.g. the
+   * to Verifiable Memory, but it takes a one-time TRAC deposit from the node's wallet
+   * (real TRAC on mainnet, faucet TRAC on testnet). Best-effort: if it fails (e.g. the
    * node wallet isn't funded) the project still works locally for triples, but members
    * can't pull note content until it's registered.
    */
