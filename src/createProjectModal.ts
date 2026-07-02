@@ -1,4 +1,4 @@
-import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
+import { ButtonComponent, Modal, Notice, Setting, setIcon } from "obsidian";
 import type OriginTrailDkgPlugin from "./main";
 import type { DkgClient } from "./dkgClient";
 import type { CreateContextGraphResult } from "./types";
@@ -41,13 +41,6 @@ export class CreateProjectModal extends Modal {
           .onChange((v) => (this.name = v.trim()))
       );
 
-    const modeHintText = () =>
-      this.mode === "open"
-        ? "Open projects are registered on-chain so members can read full note content. " +
-          "On real networks (mainnet/testnet) that registration can require a TRAC deposit " +
-          "paid by your node's wallet; on a local development chain it's free."
-        : "Curated projects are private and free — only members you approve receive shared notes.";
-
     new Setting(contentEl)
       .setName("Access mode")
       .setDesc("Curated: only invited agents can write. Open: any subscriber can write.")
@@ -58,11 +51,31 @@ export class CreateProjectModal extends Modal {
           .setValue(this.mode)
           .onChange((v) => {
             this.mode = v as "curated" | "open";
-            modeHint.setText(modeHintText());
+            paintModeHint();
           })
       );
 
-    const modeHint = contentEl.createEl("p", { cls: "dkg-hint", text: modeHintText() });
+    const modeHint = contentEl.createDiv({ cls: "dkg-mode-callout" });
+    const paintModeHint = () => {
+      const open = this.mode === "open";
+      modeHint.toggleClass("is-warning", open);
+      modeHint.toggleClass("is-info", !open);
+      modeHint.empty();
+      setIcon(modeHint.createSpan({ cls: "dkg-mode-callout-icon" }), open ? "coins" : "lock");
+      const body = modeHint.createDiv({ cls: "dkg-mode-callout-body" });
+      body.createDiv({
+        cls: "dkg-mode-callout-title",
+        text: open ? "Registered on-chain — may cost TRAC" : "Private and free",
+      });
+      body.createDiv({
+        text: open
+          ? "Open projects are registered on-chain so members can read full note content. " +
+            "On real networks (mainnet/testnet) that registration can require a TRAC deposit " +
+            "paid by your node's wallet; on a local development chain it's free."
+          : "Only members you approve receive shared notes. No on-chain registration, no cost.",
+      });
+    };
+    paintModeHint();
 
     new Setting(contentEl).addButton((btn) =>
       btn

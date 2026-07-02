@@ -596,3 +596,55 @@
 .dkg-advanced-body {
   margin-top: 8px;
 }
+
+/* Access-mode callout in the create-project modal: info (curated) / warning (open). */
+.dkg-mode-callout {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 4px 0 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.dkg-mode-callout-icon {
+  display: flex;
+  align-items: center;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.dkg-mode-callout-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.dkg-mode-callout-title {
+  font-weight: 600;
+  color: var(--text-normal);
+  margin-bottom: 2px;
+}
+
+.dkg-mode-callout.is-info {
+  background: color-mix(in srgb, var(--color-green, var(--interactive-accent)) 8%, transparent);
+  border-color: color-mix(in srgb, var(--color-green, var(--interactive-accent)) 30%, transparent);
+}
+
+.dkg-mode-callout.is-info .dkg-mode-callout-icon,
+.dkg-mode-callout.is-info .dkg-mode-callout-title {
+  color: var(--color-green, var(--text-normal));
+}
+
+.dkg-mode-callout.is-warning {
+  background: color-mix(in srgb, var(--color-orange, var(--text-warning)) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-orange, var(--text-warning)) 35%, transparent);
+}
+
+.dkg-mode-callout.is-warning .dkg-mode-callout-icon,
+.dkg-mode-callout.is-warning .dkg-mode-callout-title {
+  color: var(--color-orange, var(--text-warning));
+}
