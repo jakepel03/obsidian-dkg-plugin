@@ -65,12 +65,12 @@ export class CreateProjectModal extends Modal {
       const body = modeHint.createDiv({ cls: "dkg-mode-callout-body" });
       body.createDiv({
         cls: "dkg-mode-callout-title",
-        text: open ? "Registered on-chain — may cost TRAC" : "Private and free",
+        text: open ? "Registered on-chain (may cost TRAC)" : "Private and free",
       });
       body.createDiv({
         text: open
           ? "Open projects are registered on-chain so members can read full note content. " +
-            "Registration takes a one-time TRAC deposit from your node's wallet — " +
+            "Registration takes a one-time TRAC deposit from your node's wallet: " +
             "real TRAC on mainnet, free faucet TRAC on testnet."
           : "Only members you approve receive shared notes. No on-chain registration, no cost.",
       });
