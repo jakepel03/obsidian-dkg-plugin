@@ -75,6 +75,8 @@ export interface ContextGraphSummary {
   synced?: boolean;
   /** On-chain/local access policy as reported by the node ("public" | "private"). */
   accessPolicy?: string;
+  /** The owner node's libp2p peer id (from the creator DID) — pin target for byte-reads. */
+  creatorPeerId?: string;
 }
 
 /**

@@ -51,12 +51,17 @@ export class DkgClient {
     return raw
       .map((entry) => {
         const g = entry as Record<string, unknown>;
+        // The creator DID carries the OWNER node's libp2p peer id
+        // (`did:dkg:agent:12D3Koo…`) — the pin target for artifact byte-reads.
+        const creator = typeof g.creator === "string" ? g.creator : "";
+        const creatorPeer = creator.match(/^did:dkg:agent:(12D3Koo[\w]+)$/)?.[1];
         return {
           id: String(g.id ?? g.contextGraphId ?? g.context_graph_id ?? ""),
           name: String(g.name ?? g.displayName ?? g.id ?? g.contextGraphId ?? ""),
           subscribed: typeof g.subscribed === "boolean" ? g.subscribed : undefined,
           synced: typeof g.synced === "boolean" ? g.synced : undefined,
           accessPolicy: typeof g.accessPolicy === "string" ? g.accessPolicy : undefined,
+          creatorPeerId: creatorPeer,
         };
       })
       .filter((g) => g.id.length > 0);
