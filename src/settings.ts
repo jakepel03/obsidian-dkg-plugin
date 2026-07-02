@@ -188,6 +188,48 @@ export class OriginTrailSettingTab extends PluginSettingTab {
       );
     }
 
+    // ── Shared notes from projects ───────────────────────────────────────────
+    new Setting(containerEl).setName("Shared notes from projects").setHeading();
+
+    new Setting(containerEl)
+      .setName("Keep shared notes in your vault")
+      .setDesc(
+        "Other members' shared notes appear as files under the folder below, one subfolder per project, " +
+          "and stay up to date automatically. Turn off to browse them only via Discover."
+      )
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.materializeSharedNotes).onChange(async (value) => {
+          this.plugin.settings.materializeSharedNotes = value;
+          await this.plugin.saveSettings();
+          if (value) void this.plugin.sharedNotes.refreshAll();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName("Shared notes folder")
+      .setDesc("Vault folder that holds the per-project subfolders. Notes already placed keep their location.")
+      .addText((text) =>
+        text
+          .setPlaceholder("Shared Projects")
+          .setValue(this.plugin.settings.sharedFolderRoot)
+          .onChange(async (value) => {
+            const trimmed = value.trim().replace(/\/+$/, "");
+            if (!trimmed) return;
+            this.plugin.settings.sharedFolderRoot = trimmed;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Notify about new shared notes")
+      .setDesc('Show a short notice when notes arrive or change (e.g. "2 new, 1 updated").')
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.sharedNotesNotices).onChange(async (value) => {
+          this.plugin.settings.sharedNotesNotices = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
     // ── Connection ───────────────────────────────────────────────────────────
     new Setting(containerEl).setName("Connection").setHeading();
 

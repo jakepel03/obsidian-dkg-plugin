@@ -2,6 +2,7 @@ import { Modal, Notice, Setting, TFile, TFolder } from "obsidian";
 import type OriginTrailDkgPlugin from "./main";
 import type { ProjectReadiness, SubscribedContextGraph } from "./types";
 import { errorMessage } from "./utils";
+import { parseLiteral, sanitizeFileName } from "./sharedNotes";
 
 interface DiscoveredNote {
   entityUri: string;
@@ -319,9 +320,9 @@ export class DiscoverModal extends Modal {
     const real = await client.readArtifactMarkdown(note.cgId, note.entityUri, sub?.curatorPeerId);
     const content = real ?? (await this.reconstruct(note));
 
-    const folder = `DKG Discover/${sanitize(note.cgName)}`;
+    const folder = `DKG Discover/${sanitizeFileName(note.cgName)}`;
     await this.ensureFolder(folder);
-    const path = `${folder}/${sanitize(note.name)}.md`;
+    const path = `${folder}/${sanitizeFileName(note.name)}.md`;
 
     const existing = this.app.vault.getAbstractFileByPath(path);
     if (existing instanceof TFile) {
@@ -383,23 +384,6 @@ export class DiscoverModal extends Modal {
   }
 }
 
-function parseLiteral(v: string): string {
-  if (!v) return "";
-  // SPARQL JSON literals come back like "\"Welcome\"" or "\"x\"^^<type>".
-  const m = v.match(/^"((?:[^"\\]|\\.)*)"/);
-  return m ? m[1].replace(/\\"/g, '"') : v;
-}
-
 function shortAddr(a: string): string {
   return a && a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a || "unknown";
-}
-
-function sanitize(name: string): string {
-  return (
-    name
-      .replace(/[\\/:*?"<>|]/g, "_")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 100) || "untitled"
-  );
 }

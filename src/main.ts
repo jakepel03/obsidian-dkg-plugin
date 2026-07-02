@@ -11,17 +11,20 @@ import { ShareNoteModal } from "./shareNoteModal";
 import { DiscoverModal } from "./discoverModal";
 import { DkgDashboardView, DKG_DASHBOARD_VIEW } from "./dashboardView";
 import { SyncController } from "./syncController";
+import { SharedNotesController } from "./sharedNotesController";
 import { errorMessage } from "./utils";
 
 export default class OriginTrailDkgPlugin extends Plugin {
   settings!: OriginTrailSettings;
   sync!: SyncController;
+  sharedNotes!: SharedNotesController;
   private statusBarEl!: HTMLElement;
   private savedStatusTimer: number | null = null;
 
   async onload() {
     await this.loadSettings();
     this.sync = new SyncController(this);
+    this.sharedNotes = new SharedNotesController(this);
 
     this.statusBarEl = this.addStatusBarItem();
     this.statusBarEl.addClass("dkg-statusbar");
@@ -82,6 +85,12 @@ export default class OriginTrailDkgPlugin extends Plugin {
     });
 
     this.addCommand({
+      id: "refresh-shared-notes",
+      name: "Refresh shared notes from projects",
+      callback: () => void this.sharedNotes.refreshAll(true),
+    });
+
+    this.addCommand({
       id: "share-current-note-to-project",
       name: "Share current note to a project",
       checkCallback: (checking) => {
@@ -129,6 +138,7 @@ export default class OriginTrailDkgPlugin extends Plugin {
         })
       );
       this.maybeShowSetupPrompt();
+      this.sharedNotes.start();
     });
   }
 

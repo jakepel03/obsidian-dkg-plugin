@@ -17,19 +17,24 @@ export interface SyncOptions {
   folderDestinations?: FolderDestination[];
   /** This node's agent address, needed to build entity URIs for link enrichment. */
   agentAddress?: string;
+  /** Root folder holding materialized shared notes — excluded from import (see shouldSkipPath). */
+  sharedFolderRoot?: string;
 }
 
 export function isMarkdownFile(file: TFile): boolean {
   return file.extension.toLowerCase() === "md";
 }
 
-export function shouldSkipPath(path: string): boolean {
+export function shouldSkipPath(path: string, sharedFolderRoot?: string): boolean {
   return (
     path.startsWith(".obsidian/") ||
     path.startsWith(".trash/") ||
     path.includes("/.trash/") ||
     // Forked/discovered notes are a read-only local cache, not authored content.
-    path.startsWith("DKG Discover/")
+    path.startsWith("DKG Discover/") ||
+    // Materialized shared notes are other members' content — importing them
+    // back would echo their notes into this vault's graph under our identity.
+    (!!sharedFolderRoot && path.startsWith(`${sharedFolderRoot.replace(/\/+$/, "")}/`))
   );
 }
 
@@ -173,7 +178,11 @@ async function enrichAssertionWithLinks(
   // Resolved wikilinks → real target note entities (same CG as this note).
   const resolved = app.metadataCache.resolvedLinks[file.path] ?? {};
   for (const targetPath of Object.keys(resolved)) {
-    if (!targetPath.toLowerCase().endsWith(".md") || shouldSkipPath(targetPath) || targetPath === file.path) {
+    if (
+      !targetPath.toLowerCase().endsWith(".md") ||
+      shouldSkipPath(targetPath, opts.sharedFolderRoot) ||
+      targetPath === file.path
+    ) {
       continue;
     }
     const targetName = await makeAssertionName(opts.vaultId, targetPath);
@@ -194,7 +203,7 @@ export async function syncAllMarkdownFiles(
   opts: SyncOptions,
   onProgress?: (done: number, total: number, file: TFile) => void
 ): Promise<SyncResult[]> {
-  const files = app.vault.getMarkdownFiles().filter((file) => !shouldSkipPath(file.path));
+  const files = app.vault.getMarkdownFiles().filter((file) => !shouldSkipPath(file.path, opts.sharedFolderRoot));
   const results: SyncResult[] = [];
 
   for (const file of files) {
