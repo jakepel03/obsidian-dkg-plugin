@@ -63,7 +63,7 @@ underneath, and you decide, note by note, what stays private and what gets share
 - 🔁 **Live auto-sync**: edits, creates, renames, and deletes are mirrored to the DKG (debounced, not on every keystroke).
 - 🤝 **Per-note & per-folder sharing**: share an individual note to a project, or route a whole folder to one automatically.
 - 🌐 **Collaborative projects**: create or join shared projects (context graphs) and manage members.
-- 📥 **Shared notes as real files**: members' shared notes appear under `Shared Projects/<project>/` and stay up to date automatically — searchable, linkable, and visible in the graph view like any other note.
+- 📥 **A project is a folder**: members' shared notes appear under `Shared Projects/<project>/` and stay up to date automatically — and any note you place there is shared with the project. Searchable, linkable, and visible in the graph view like any other note.
 - 🔎 **Discover**: browse notes others have shared into a project you're subscribed to.
 - 📊 **Dashboard & status bar**: see your project, sync state, and project readiness at a glance.
 - 🪄 **Guided setup**: a 3-step wizard handles connection and the first import.
@@ -151,12 +151,19 @@ debounce, so the graph tracks your latest writing without syncing on every keyst
 projects show their sync/readiness state, and **Discover** lets you browse notes others
 have shared into a project you've joined.
 
-**Receive.** Other members' shared notes are materialized as read-only files under
+**Receive.** Other members' shared notes are materialized as files under
 `Shared Projects/<project name>/`, kept current in the background (checked about once a
 minute against your local node — new notes appear, edited notes update, retracted notes
 move to the trash). If you edit your local copy, it's never overwritten — you keep your
-version and stop receiving updates for that note. Notes you place there yourself are not
-imported back; the folder is a read-side mirror.
+version and stop receiving updates for that note. Moving a received note out of the
+project folder makes it yours (it stops updating, and the shared original reappears in
+the folder).
+
+**Contribute.** The same folder works in the write direction: any note *you* create in
+(or move into) `Shared Projects/<project name>/` is shared with that project — no
+frontmatter to remember. Explicit `shared_to` markers and folder rules still work and
+take precedence. Received notes are recognized by their `dkg_author` provenance
+frontmatter and are never re-imported, so the two directions can't echo.
 
 > [!IMPORTANT]
 > New projects are **curated** (invite-only) by default, which is free. Choosing an

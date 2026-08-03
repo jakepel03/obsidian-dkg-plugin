@@ -1,6 +1,13 @@
 import { Notice, TFile } from "obsidian";
 import type OriginTrailDkgPlugin from "./main";
-import { resolveRouting, shouldSkipPath, syncAllMarkdownFiles, syncMarkdownFile, type SyncOptions } from "./noteSync";
+import {
+  isReceivedSharedNote,
+  resolveRouting,
+  shouldSkipPath,
+  syncAllMarkdownFiles,
+  syncMarkdownFile,
+  type SyncOptions,
+} from "./noteSync";
 import { makeAssertionName } from "./identity";
 import type { SyncResult } from "./types";
 import { errorMessage } from "./utils";
@@ -45,7 +52,20 @@ export class SyncController {
       folderDestinations: this.settings.folderDestinations,
       agentAddress: this.cachedAgentAddress,
       sharedFolderRoot: this.settings.sharedFolderRoot,
+      materializedPaths: this.materializedPaths(),
     };
+  }
+
+  /** Vault paths of received (materialized) notes — authoritative "not ours" set. */
+  private materializedPaths(): Set<string> {
+    return new Set(Object.values(this.settings.materializedNotes).map((s) => s.path));
+  }
+
+  /** A received member note, or a file the materializer is writing right now. */
+  private isReceivedNote(file: TFile): boolean {
+    if (this.plugin.sharedNotes?.isWriting(file.path)) return true;
+    const fm = this.plugin.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
+    return isReceivedSharedNote(fm, file.path, this.materializedPaths());
   }
 
   /** Where a note goes on sync: private, or shared to a project (and how). */
@@ -75,7 +95,7 @@ export class SyncController {
       new Notice('This vault is not connected to DKG yet. Run "Connect this vault" first.');
       return undefined;
     }
-    if (file.extension !== "md" || shouldSkipPath(file.path, this.settings.sharedFolderRoot)) return undefined;
+    if (file.extension !== "md" || shouldSkipPath(file.path) || this.isReceivedNote(file)) return undefined;
 
     if (this.activeSyncs === 0) this.hadError = false;
     this.activeSyncs++;
@@ -126,7 +146,7 @@ export class SyncController {
 
   scheduleAutoSync(file: TFile): void {
     if (!this.settings.autoSync || !this.settings.defaultContextGraphId) return;
-    if (file.extension !== "md" || shouldSkipPath(file.path, this.settings.sharedFolderRoot)) return;
+    if (file.extension !== "md" || shouldSkipPath(file.path) || this.isReceivedNote(file)) return;
 
     const existing = this.pendingTimers.get(file.path);
     if (existing) window.clearTimeout(existing);
@@ -145,16 +165,12 @@ export class SyncController {
 
     // The old path's stable assertion name no longer maps to any file — discard
     // it so the rename doesn't leave an orphan. (No-op if it was never synced.)
-    if (oldPath.toLowerCase().endsWith(".md") && !shouldSkipPath(oldPath, this.settings.sharedFolderRoot)) {
+    if (oldPath.toLowerCase().endsWith(".md") && !shouldSkipPath(oldPath)) {
       await this.discardAssertionForPath(oldPath);
     }
 
     // Re-sync under the new path unless it moved into an excluded area.
-    if (
-      this.settings.autoSync &&
-      file.extension === "md" &&
-      !shouldSkipPath(file.path, this.settings.sharedFolderRoot)
-    ) {
+    if (this.settings.autoSync && file.extension === "md" && !shouldSkipPath(file.path)) {
       this.scheduleAutoSync(file);
     }
   }
@@ -164,7 +180,7 @@ export class SyncController {
     if (!this.settings.defaultContextGraphId) return;
     this.cancelPendingSync(file.path);
 
-    if (file.extension === "md" && !shouldSkipPath(file.path, this.settings.sharedFolderRoot)) {
+    if (file.extension === "md" && !shouldSkipPath(file.path) && !this.isReceivedNote(file)) {
       await this.discardAssertionForPath(file.path);
     }
   }

@@ -129,7 +129,12 @@ export default class OriginTrailDkgPlugin extends Plugin {
       );
       this.registerEvent(
         this.app.vault.on("rename", (file, oldPath) => {
-          if (file instanceof TFile) void this.sync.handleRename(file, oldPath);
+          if (!(file instanceof TFile)) return;
+          // A materialized (received) note's move is tracking bookkeeping,
+          // not an authored change — don't let it reach the sync pipeline.
+          void this.sharedNotes.handleRename(file.path, oldPath).then((handled) => {
+            if (!handled) void this.sync.handleRename(file, oldPath);
+          });
         })
       );
       this.registerEvent(

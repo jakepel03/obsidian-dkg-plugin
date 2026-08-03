@@ -37,10 +37,47 @@ export class SharedNotesController {
   private readonly retryAfter = new Map<string, number>();
   /** Entities already warned about in this session (conflict / fetch failure). */
   private readonly notified = new Set<string>();
+  /** Paths the materializer is writing at this moment (guards the sync-on-create race). */
+  private readonly writing = new Set<string>();
   /** For a future dashboard "updated N min ago" — epoch ms of the last completed refresh. */
   lastRefreshAt = 0;
 
   constructor(private readonly plugin: OriginTrailDkgPlugin) {}
+
+  /** True while the materializer itself is writing this path (sync must ignore the event). */
+  isWriting(path: string): boolean {
+    return this.writing.has(path);
+  }
+
+  /**
+   * Track a user rename/move of a materialized file. Inside the same project
+   * folder the file keeps receiving updates at its new location; moved OUT of
+   * the project folder it becomes the user's own copy (untracked — the shared
+   * note re-materializes in the folder on the next tick). Returns true when
+   * the rename was ours to handle, so the sync pipeline can skip it.
+   */
+  async handleRename(newPath: string, oldPath: string): Promise<boolean> {
+    const settings = this.plugin.settings;
+    const entry = Object.entries(settings.materializedNotes).find(([, s]) => s.path === oldPath);
+    if (!entry) return false;
+    const [entityUri, state] = entry;
+    const cg = settings.subscribedContextGraphs.find((c) => c.id === state.cgId);
+    const folder = `${settings.sharedFolderRoot}/${sanitizeFileName(cg?.name || state.cgId)}/`;
+    if (newPath.startsWith(folder)) {
+      state.path = newPath;
+    } else {
+      delete settings.materializedNotes[entityUri];
+      if (settings.sharedNotesNotices) {
+        new Notice(
+          `That copy is yours now — it left the project folder, so it stops receiving updates. ` +
+            `The shared note will reappear in the folder.`,
+          8000
+        );
+      }
+    }
+    await this.plugin.saveSettings();
+    return true;
+  }
 
   /** Begin background refreshing (call once, after the workspace layout is ready). */
   start(): void {
@@ -217,34 +254,39 @@ export class SharedNotesController {
       .catch(() => null);
     if (content === null) return "unavailable";
 
-    let file: TFile;
-    if (existing instanceof TFile) {
-      await vault.modify(existing, content);
-      file = existing;
-    } else {
-      await this.ensureFolder(path.slice(0, path.lastIndexOf("/")));
-      file = await vault.create(path, content);
-    }
+    this.writing.add(path);
+    try {
+      let file: TFile;
+      if (existing instanceof TFile) {
+        await vault.modify(existing, content);
+        file = existing;
+      } else {
+        await this.ensureFolder(path.slice(0, path.lastIndexOf("/")));
+        file = await vault.create(path, content);
+      }
 
-    // Provenance frontmatter (also what the write-side follow-up will key its
-    // "not my note" skip on), then fingerprint the final bytes so the next
-    // tick can tell our write from a user edit. The AUTHOR's sharing markers
-    // are dropped: left in place, moving the copy out of the shared folder
-    // would re-share it into the project under THIS user's identity.
-    await fileManager.processFrontMatter(file, (fm) => {
-      delete fm.shared_to;
-      delete fm.shared;
-      fm.dkg_origin = note.cgId;
-      fm.dkg_author = note.author;
-      if (note.hash) fm.dkg_hash = note.hash;
-    });
-    settings.materializedNotes[note.entityUri] = {
-      path,
-      hash: note.hash ?? "",
-      digest: await sha256Hex(await vault.read(file)),
-      cgId: note.cgId,
-    };
-    return "written";
+      // Provenance frontmatter (what the sync pipeline's "not my note" skip
+      // keys on), then fingerprint the final bytes so the next tick can tell
+      // our write from a user edit. The AUTHOR's sharing markers are dropped:
+      // left in place, moving the copy out of the shared folder would
+      // re-share it into the project under THIS user's identity.
+      await fileManager.processFrontMatter(file, (fm) => {
+        delete fm.shared_to;
+        delete fm.shared;
+        fm.dkg_origin = note.cgId;
+        fm.dkg_author = note.author;
+        if (note.hash) fm.dkg_hash = note.hash;
+      });
+      settings.materializedNotes[note.entityUri] = {
+        path,
+        hash: note.hash ?? "",
+        digest: await sha256Hex(await vault.read(file)),
+        cgId: note.cgId,
+      };
+      return "written";
+    } finally {
+      this.writing.delete(path);
+    }
   }
 
   /** Upstream entity is gone: trash our unedited copy; keep (and orphan) an edited one. */

@@ -2,6 +2,7 @@ import type { App, TFile } from "obsidian";
 import type { FolderDestination, SubscribedContextGraph, SyncResult } from "./types";
 import type { DkgClient } from "./dkgClient";
 import { makeAssertionName, makeAssertionUri } from "./identity";
+import { sanitizeFileName } from "./sharedNotes";
 import { sleep } from "./utils";
 
 const SCHEMA_NAME = "http://schema.org/name";
@@ -17,25 +18,44 @@ export interface SyncOptions {
   folderDestinations?: FolderDestination[];
   /** This node's agent address, needed to build entity URIs for link enrichment. */
   agentAddress?: string;
-  /** Root folder holding materialized shared notes — excluded from import (see shouldSkipPath). */
+  /** Root folder for project folders: received notes live here, and the user's own notes here are shared. */
   sharedFolderRoot?: string;
+  /** Vault paths of currently materialized (received) notes — never imported. */
+  materializedPaths?: Set<string>;
 }
 
 export function isMarkdownFile(file: TFile): boolean {
   return file.extension.toLowerCase() === "md";
 }
 
-export function shouldSkipPath(path: string, sharedFolderRoot?: string): boolean {
+export function shouldSkipPath(path: string): boolean {
   return (
     path.startsWith(".obsidian/") ||
     path.startsWith(".trash/") ||
     path.includes("/.trash/") ||
     // Forked/discovered notes are a read-only local cache, not authored content.
-    path.startsWith("DKG Discover/") ||
-    // Materialized shared notes are other members' content — importing them
-    // back would echo their notes into this vault's graph under our identity.
-    (!!sharedFolderRoot && path.startsWith(`${sharedFolderRoot.replace(/\/+$/, "")}/`))
+    path.startsWith("DKG Discover/")
   );
+}
+
+/**
+ * Whether a file is another member's note received via materialization —
+ * those are never imported, or they'd echo into this vault's graph under OUR
+ * identity. The check is AUTHORSHIP-based, not path-based, so the user's own
+ * notes dropped into a project folder do sync (see resolveRouting rule 3):
+ *  - the controller's state map is authoritative for files it manages, and
+ *  - the `dkg_author` provenance frontmatter covers copies that lost their
+ *    state entry (conflicted/orphaned/moved copies stay someone else's work
+ *    until the user deletes that key to adopt them).
+ */
+export function isReceivedSharedNote(
+  frontmatter: Record<string, unknown> | undefined,
+  filePath: string,
+  materializedPaths?: Set<string>
+): boolean {
+  if (materializedPaths?.has(filePath)) return true;
+  const author = frontmatter?.dkg_author;
+  return typeof author === "string" && author.trim().length > 0;
 }
 
 /**
@@ -45,10 +65,18 @@ export function shouldSkipPath(path: string, sharedFolderRoot?: string): boolean
  *
  *  1. `shared_to: <project>` — share into that named subscribed project.
  *  2. otherwise, the first matching folder rule (`folderDestinations`).
- *  3. otherwise — private (primary graph, not promoted).
+ *  3. otherwise, the implicit shared-folder rule: your own note inside a
+ *     project's folder (`<sharedFolderRoot>/<project name>/…`) is shared to
+ *     that project — "a project is a folder in your vault". Derived from the
+ *     subscription list at routing time, never stored, so leaving a project
+ *     can't leave a stale rule behind.
+ *  4. otherwise — private (primary graph, not promoted).
  *
  * "Shared" means promoted into the destination project's Shared Memory, which
  * is what makes it visible to that project's other subscribers.
+ *
+ * Received (materialized) notes never reach routing — callers exclude them
+ * first via `isReceivedSharedNote`.
  */
 export function resolveRouting(
   filePath: string,
@@ -74,8 +102,30 @@ export function resolveRouting(
   const folderDest = matchFolderDestination(filePath, opts.folderDestinations ?? [], subs);
   if (folderDest) return { contextGraphId: folderDest, promote: true };
 
-  // 3. Private.
+  // 3. Implicit shared-folder rule.
+  const implicit = matchSharedProjectFolder(filePath, opts.sharedFolderRoot, subs);
+  if (implicit) return { contextGraphId: implicit, promote: true };
+
+  // 4. Private.
   return { contextGraphId: opts.primaryContextGraphId, promote: false };
+}
+
+/**
+ * Map `<sharedFolderRoot>/<project folder>/…` to the matching subscribed
+ * project. The folder segment is matched against the same sanitized name the
+ * materializer uses to create project folders, so both directions agree.
+ */
+function matchSharedProjectFolder(
+  filePath: string,
+  sharedFolderRoot: string | undefined,
+  subs: SubscribedContextGraph[]
+): string | undefined {
+  if (!sharedFolderRoot) return undefined;
+  const root = `${sharedFolderRoot.replace(/\/+$/, "")}/`;
+  if (!filePath.startsWith(root)) return undefined;
+  const segment = filePath.slice(root.length).split("/")[0];
+  if (!segment) return undefined;
+  return subs.find((c) => sanitizeFileName(c.name || c.id) === segment)?.id;
 }
 
 /**
@@ -180,7 +230,10 @@ async function enrichAssertionWithLinks(
   for (const targetPath of Object.keys(resolved)) {
     if (
       !targetPath.toLowerCase().endsWith(".md") ||
-      shouldSkipPath(targetPath, opts.sharedFolderRoot) ||
+      shouldSkipPath(targetPath) ||
+      // A link to a RECEIVED note must not mint an edge to a self-owned entity
+      // URI — that note's real entity belongs to its author, not this vault.
+      opts.materializedPaths?.has(targetPath) ||
       targetPath === file.path
     ) {
       continue;
@@ -203,7 +256,11 @@ export async function syncAllMarkdownFiles(
   opts: SyncOptions,
   onProgress?: (done: number, total: number, file: TFile) => void
 ): Promise<SyncResult[]> {
-  const files = app.vault.getMarkdownFiles().filter((file) => !shouldSkipPath(file.path, opts.sharedFolderRoot));
+  const files = app.vault.getMarkdownFiles().filter((file) => {
+    if (shouldSkipPath(file.path)) return false;
+    const fm = app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
+    return !isReceivedSharedNote(fm, file.path, opts.materializedPaths);
+  });
   const results: SyncResult[] = [];
 
   for (const file of files) {
