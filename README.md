@@ -63,6 +63,7 @@ underneath, and you decide, note by note, what stays private and what gets share
 - 🔁 **Live auto-sync**: edits, creates, renames, and deletes are mirrored to the DKG (debounced, not on every keystroke).
 - 🤝 **Per-note & per-folder sharing**: share an individual note to a project, or route a whole folder to one automatically.
 - 🌐 **Collaborative projects**: create or join shared projects (context graphs) and manage members.
+- 📥 **Shared notes as real files**: members' shared notes appear under `Shared Projects/<project>/` and stay up to date automatically — searchable, linkable, and visible in the graph view like any other note.
 - 🔎 **Discover**: browse notes others have shared into a project you're subscribed to.
 - 📊 **Dashboard & status bar**: see your project, sync state, and project readiness at a glance.
 - 🪄 **Guided setup**: a 3-step wizard handles connection and the first import.
@@ -150,6 +151,13 @@ debounce, so the graph tracks your latest writing without syncing on every keyst
 projects show their sync/readiness state, and **Discover** lets you browse notes others
 have shared into a project you've joined.
 
+**Receive.** Other members' shared notes are materialized as read-only files under
+`Shared Projects/<project name>/`, kept current in the background (checked about once a
+minute against your local node — new notes appear, edited notes update, retracted notes
+move to the trash). If you edit your local copy, it's never overwritten — you keep your
+version and stop receiving updates for that note. Notes you place there yourself are not
+imported back; the folder is a read-side mirror.
+
 > [!IMPORTANT]
 > New projects are **curated** (invite-only) by default, which is free. Choosing an
 > **open (public)** project additionally registers it on-chain so anyone can subscribe and
@@ -174,6 +182,7 @@ All commands are available from the command palette under the **OriginTrail DKG*
 | Create shared project | Create a new shared project (context graph). |
 | Join shared project | Join / subscribe to an existing project. |
 | Discover shared notes from a project | Browse notes shared into a subscribed project. |
+| Refresh shared notes from projects | Fetch members' shared notes into `Shared Projects/` right now. |
 | Share current note to a project | Share the active note to a chosen project. |
 | Stop sharing current note | Make the active note private again. |
 
@@ -189,6 +198,9 @@ Open **Settings → OriginTrail DKG**:
 | Sync debounce | How long to wait after an edit before syncing (default 1.5s). |
 | Your projects | Projects you've created or joined, with owner/member roles. |
 | Folder rules | Folder → project routing for automatic per-folder sharing. |
+| Keep shared notes in your vault | Materialize members' shared notes as files (on by default). |
+| Shared notes folder | Where those files live (default `Shared Projects`). |
+| Notify about new shared notes | Short notice when notes arrive or change. |
 
 ## Development
 

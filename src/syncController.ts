@@ -44,6 +44,7 @@ export class SyncController {
       subscribedContextGraphs: this.settings.subscribedContextGraphs,
       folderDestinations: this.settings.folderDestinations,
       agentAddress: this.cachedAgentAddress,
+      sharedFolderRoot: this.settings.sharedFolderRoot,
     };
   }
 
@@ -74,7 +75,7 @@ export class SyncController {
       new Notice('This vault is not connected to DKG yet. Run "Connect this vault" first.');
       return undefined;
     }
-    if (file.extension !== "md" || shouldSkipPath(file.path)) return undefined;
+    if (file.extension !== "md" || shouldSkipPath(file.path, this.settings.sharedFolderRoot)) return undefined;
 
     if (this.activeSyncs === 0) this.hadError = false;
     this.activeSyncs++;
@@ -125,7 +126,7 @@ export class SyncController {
 
   scheduleAutoSync(file: TFile): void {
     if (!this.settings.autoSync || !this.settings.defaultContextGraphId) return;
-    if (file.extension !== "md" || shouldSkipPath(file.path)) return;
+    if (file.extension !== "md" || shouldSkipPath(file.path, this.settings.sharedFolderRoot)) return;
 
     const existing = this.pendingTimers.get(file.path);
     if (existing) window.clearTimeout(existing);
@@ -144,12 +145,16 @@ export class SyncController {
 
     // The old path's stable assertion name no longer maps to any file — discard
     // it so the rename doesn't leave an orphan. (No-op if it was never synced.)
-    if (oldPath.toLowerCase().endsWith(".md") && !shouldSkipPath(oldPath)) {
+    if (oldPath.toLowerCase().endsWith(".md") && !shouldSkipPath(oldPath, this.settings.sharedFolderRoot)) {
       await this.discardAssertionForPath(oldPath);
     }
 
     // Re-sync under the new path unless it moved into an excluded area.
-    if (this.settings.autoSync && file.extension === "md" && !shouldSkipPath(file.path)) {
+    if (
+      this.settings.autoSync &&
+      file.extension === "md" &&
+      !shouldSkipPath(file.path, this.settings.sharedFolderRoot)
+    ) {
       this.scheduleAutoSync(file);
     }
   }
@@ -159,7 +164,7 @@ export class SyncController {
     if (!this.settings.defaultContextGraphId) return;
     this.cancelPendingSync(file.path);
 
-    if (file.extension === "md" && !shouldSkipPath(file.path)) {
+    if (file.extension === "md" && !shouldSkipPath(file.path, this.settings.sharedFolderRoot)) {
       await this.discardAssertionForPath(file.path);
     }
   }

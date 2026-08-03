@@ -6,6 +6,12 @@ export interface SubscribedContextGraph {
   role: "owner" | "member";
   curated?: boolean;
   /**
+   * Whether other members' shared notes in this project are materialized as
+   * files under the shared-notes folder. undefined = yes (the default);
+   * false = this project stays dashboard/Discover-only.
+   */
+  materialize?: boolean;
+  /**
    * The curator's libp2p peer id, captured from the invite code at join time.
    * Used to pin on-demand artifact byte-reads (Fork) straight at the curator
    * instead of letting the node probe every connected peer sequentially.
@@ -32,6 +38,26 @@ export interface OriginTrailSettings {
   subscribedContextGraphs: SubscribedContextGraph[];
   /** Folder → project rules; notes under a folder are shared there automatically. */
   folderDestinations: FolderDestination[];
+  /** Master switch for keeping other members' shared notes as files in the vault. */
+  materializeSharedNotes: boolean;
+  /** Vault folder that holds one subfolder per project with members' shared notes. */
+  sharedFolderRoot: string;
+  /** Show a (batched) notice when shared notes arrive or change. */
+  sharedNotesNotices: boolean;
+  /** Sync state per materialized note, keyed by the note's DKG entity URI. */
+  materializedNotes: Record<string, MaterializedNoteState>;
+}
+
+/** What the plugin last wrote for one materialized shared note. */
+export interface MaterializedNoteState {
+  /** Vault path of the materialized file. */
+  path: string;
+  /** Upstream content fingerprint (`dkg:sourceFileHash`, e.g. "keccak256:…"); "" if the author's node didn't record one. */
+  hash: string;
+  /** SHA-256 of the file as the plugin last wrote it — a mismatch means the user edited the copy. */
+  digest: string;
+  /** Project the note belongs to. */
+  cgId: string;
 }
 
 export const DEFAULT_SETTINGS: OriginTrailSettings = {
@@ -44,6 +70,10 @@ export const DEFAULT_SETTINGS: OriginTrailSettings = {
   hasCompletedSetup: false,
   subscribedContextGraphs: [],
   folderDestinations: [],
+  materializeSharedNotes: true,
+  sharedFolderRoot: "Shared Projects",
+  sharedNotesNotices: true,
+  materializedNotes: {},
 };
 
 export type RequestTransport = (request: RequestUrlParam) => Promise<RequestUrlResponse>;
