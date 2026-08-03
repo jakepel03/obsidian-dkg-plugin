@@ -239,20 +239,15 @@ export class DkgClient {
   /**
    * Share an assertion's triples into Shared Memory (the route formerly named "promote").
    *
-   * `skipSeal: true` performs an UNSEALED share. A default (sealed) share finalizes the
-   * assertion — recording a merkleRoot + author signature — which makes editing a note
-   * and re-sharing it fail with 500 ("already finalized with a different merkleRoot"),
-   * because re-finalizing edited content in place would break the recorded signature.
-   * The plugin's notes are mutable working content (no on-chain/VM publish), so sealing
-   * is the wrong model: we opt out. An unsealed share also clears any prior seal on the
-   * node side after it commits, so a note sealed by an earlier share self-heals on its
-   * next share. Older nodes that predate `skipSeal` (rc.18 and earlier) ignore the field.
+   * Sharing is seal-before-share, and the node seals for us: `share` always finalizes the
+   * draft first, so the document flow (import-file → share) needs no explicit finalize
+   * step. Sealing is local — the response reports `publishReady`, but nothing reaches the
+   * chain until a VM publish, which the plugin never issues.
    */
   async promoteAssertion(contextGraphId: string, assertionName: string): Promise<unknown> {
     return this.json("POST", `/api/knowledge-assets/${encodeURIComponent(assertionName)}/swm/share`, {
       contextGraphId,
       entities: "all",
-      skipSeal: true,
     });
   }
 
@@ -261,11 +256,26 @@ export class DkgClient {
    * orphans when a note is renamed or deleted. The daemon returns 400 with a
    * "not found" message if the assertion never existed — callers treat that as
    * a no-op rather than an error.
+   *
+   * Sharing a note moves its content to Shared Memory and leaves no draft behind, so a
+   * shared note's discard fails until one is seeded back from Shared Memory. Retry once
+   * through `pull-from`; if that isn't the problem, reopening fails too and the original
+   * error stands. Either way this clears only the local draft — there is no retract verb,
+   * so the shared copy stays in the project and peers that synced it keep theirs.
    */
   async discardAssertion(contextGraphId: string, assertionName: string): Promise<unknown> {
-    return this.json("POST", `/api/knowledge-assets/${encodeURIComponent(assertionName)}/wm/discard`, {
-      contextGraphId,
-    });
+    const path = `/api/knowledge-assets/${encodeURIComponent(assertionName)}/wm/discard`;
+    try {
+      return await this.json("POST", path, { contextGraphId });
+    } catch (failure) {
+      await this.json("POST", `/api/knowledge-assets/${encodeURIComponent(assertionName)}/wm/pull-from`, {
+        contextGraphId,
+        layer: "swm",
+      }).catch(() => {
+        throw failure;
+      });
+      return this.json("POST", path, { contextGraphId });
+    }
   }
 
   /**
