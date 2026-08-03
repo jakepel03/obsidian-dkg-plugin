@@ -316,7 +316,8 @@ export class DiscoverModal extends Modal {
     // captured it at join time) so the node goes straight there instead of probing every
     // connected peer in turn — the difference between ~25ms and a multi-minute hang.
     const sub = this.plugin.settings.subscribedContextGraphs.find((p) => p.id === note.cgId);
-    const real = await client.readArtifactMarkdown(note.cgId, note.entityUri, sub?.curatorPeerId);
+    const pin = sub?.curatorPeerId ?? (await this.resolveOwnerPeer(note.cgId));
+    const real = await client.readArtifactMarkdown(note.cgId, note.entityUri, pin);
     const content = real ?? (await this.reconstruct(note));
 
     const folder = `DKG Discover/${sanitize(note.cgName)}`;
@@ -329,6 +330,30 @@ export class DiscoverModal extends Modal {
       return existing;
     }
     return await this.app.vault.create(path, content);
+  }
+
+  /**
+   * Resolve (and backfill) the byte-read pin for projects joined WITHOUT a
+   * curator peer id — open projects, whose invite code is just the project id
+   * (a two-line code would misroute joiners into the curated approval flow).
+   * Unpinned reads probe peers one by one and often fail with stream resets,
+   * silently degrading forks to stubs; the graph list's creator DID carries
+   * the owner's peer id, so pin there instead. Persisted once resolved.
+   */
+  private async resolveOwnerPeer(cgId: string): Promise<string | undefined> {
+    const peer = await this.plugin
+      .client()
+      .listContextGraphs()
+      .then((graphs) => graphs.find((g) => g.id === cgId)?.creatorPeerId)
+      .catch(() => undefined);
+    if (peer) {
+      const sub = this.plugin.settings.subscribedContextGraphs.find((p) => p.id === cgId);
+      if (sub && !sub.curatorPeerId) {
+        sub.curatorPeerId = peer;
+        await this.plugin.saveSettings();
+      }
+    }
+    return peer;
   }
 
   /** Build a Markdown stub from the graph when source bytes aren't on this node. */

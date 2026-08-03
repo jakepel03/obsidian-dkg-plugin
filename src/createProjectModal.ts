@@ -1,4 +1,4 @@
-import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
+import { ButtonComponent, Modal, Notice, Setting, setIcon } from "obsidian";
 import type OriginTrailDkgPlugin from "./main";
 import type { DkgClient } from "./dkgClient";
 import type { CreateContextGraphResult } from "./types";
@@ -49,8 +49,33 @@ export class CreateProjectModal extends Modal {
           .addOption("curated", "Curated (invite-only)")
           .addOption("open", "Open (any subscriber)")
           .setValue(this.mode)
-          .onChange((v) => (this.mode = v as "curated" | "open"))
+          .onChange((v) => {
+            this.mode = v as "curated" | "open";
+            paintModeHint();
+          })
       );
+
+    const modeHint = contentEl.createDiv({ cls: "dkg-mode-callout" });
+    const paintModeHint = () => {
+      const open = this.mode === "open";
+      modeHint.toggleClass("is-warning", open);
+      modeHint.toggleClass("is-info", !open);
+      modeHint.empty();
+      setIcon(modeHint.createSpan({ cls: "dkg-mode-callout-icon" }), open ? "coins" : "lock");
+      const body = modeHint.createDiv({ cls: "dkg-mode-callout-body" });
+      body.createDiv({
+        cls: "dkg-mode-callout-title",
+        text: open ? "Registered on-chain (may cost TRAC)" : "Private and free",
+      });
+      body.createDiv({
+        text: open
+          ? "Open projects are registered on-chain so members can read full note content. " +
+            "Registration takes a one-time TRAC deposit from your node's wallet: " +
+            "real TRAC on mainnet, free faucet TRAC on testnet."
+          : "Only members you approve receive shared notes. No on-chain registration, no cost.",
+      });
+    };
+    paintModeHint();
 
     new Setting(contentEl).addButton((btn) =>
       btn
@@ -88,8 +113,9 @@ export class CreateProjectModal extends Modal {
         if (!/409|conflict|already/i.test(msg)) throw err;
       }
 
+      let registeredOk: boolean | undefined;
       if (isOpen) {
-        await this.ensureRegistered(client, cgId, createResult);
+        registeredOk = await this.ensureRegistered(client, cgId, createResult);
       }
 
       this.inviteCode = this.mode === "curated" ? `${cgId}\n${identity.peerId}` : cgId;
@@ -103,7 +129,11 @@ export class CreateProjectModal extends Modal {
           name: this.name,
           role: "owner",
           curated: this.mode === "curated",
+          ...(registeredOk !== undefined ? { registered: registeredOk } : {}),
         });
+        await this.plugin.saveSettings();
+      } else if (registeredOk !== undefined && already.registered !== registeredOk) {
+        already.registered = registeredOk;
         await this.plugin.saveSettings();
       }
 
@@ -119,8 +149,8 @@ export class CreateProjectModal extends Modal {
    * Open/public projects must be registered on-chain for members to read shared note
    * content — the node's import-artifact read-guard only drops the owner check for a CG
    * registered public+open on-chain. Registration is one-time and does NOT publish notes
-   * to Verifiable Memory, but on real networks it can require a TRAC registration deposit
-   * from the node's wallet (free on a local dev chain). Best-effort: if it fails (e.g. the
+   * to Verifiable Memory, but it takes a one-time TRAC deposit from the node's wallet
+   * (real TRAC on mainnet, faucet TRAC on testnet). Best-effort: if it fails (e.g. the
    * node wallet isn't funded) the project still works locally for triples, but members
    * can't pull note content until it's registered.
    */
@@ -128,19 +158,25 @@ export class CreateProjectModal extends Modal {
     client: DkgClient,
     cgId: string,
     createResult: CreateContextGraphResult | undefined
-  ): Promise<void> {
-    if (createResult?.registered === true || createResult?.onChainId) return;
+  ): Promise<boolean> {
+    if (createResult?.registered === true || createResult?.onChainId) return true;
     try {
-      if ((await client.registerContextGraph(cgId, 0, 1)).onChainId) return;
-    } catch {
-      // fall through to the warning
+      const res = await client.registerContextGraph(cgId, 0, 1);
+      if (res.onChainId || res.registered) return true;
+    } catch (err) {
+      // A 409 "already registered" means the goal state is already reached
+      // (e.g. recreating a project whose earlier registration landed).
+      if (/already registered/i.test(errorMessage(err))) return true;
+      // otherwise fall through to the warning
     }
     const reason = createResult?.registerError ? ` Reason: ${createResult.registerError}.` : "";
     new Notice(
-      "Project created, but on-chain registration failed, so members won't be able to read shared note content yet." +
-        `${reason} Make sure your node's wallet is funded, then recreate the project.`,
+      "Project created, but on-chain registration failed. Members will still receive shared titles and links, " +
+        `but can't read full note content yet.${reason} Fund your node's wallet, then retry with the Register ` +
+        "button on the project's dashboard row.",
       14000
     );
+    return false;
   }
 
   private renderCreated() {

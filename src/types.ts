@@ -11,6 +11,12 @@ export interface SubscribedContextGraph {
    * instead of letting the node probe every connected peer sequentially.
    */
   curatorPeerId?: string;
+  /**
+   * On-chain registration state for OPEN projects the user owns. false = the
+   * create-time registration failed and can be retried from the dashboard;
+   * undefined = not applicable (curated, member role) or pre-existing entry.
+   */
+  registered?: boolean;
 }
 
 /** A folder whose notes are shared to a project by default (e.g. `Team/` → research-team). */
@@ -69,6 +75,8 @@ export interface ContextGraphSummary {
   synced?: boolean;
   /** On-chain/local access policy as reported by the node ("public" | "private"). */
   accessPolicy?: string;
+  /** The owner node's libp2p peer id (from the creator DID) — pin target for byte-reads. */
+  creatorPeerId?: string;
 }
 
 /**
