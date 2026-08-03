@@ -1,4 +1,4 @@
-import { Notice, Plugin, TFile, requestUrl } from "obsidian";
+import { FileSystemAdapter, Notice, Plugin, TFile, requestUrl } from "obsidian";
 import { DkgClient } from "./dkgClient";
 import { makeVaultId, slugifyContextGraphId } from "./identity";
 import { syncAllMarkdownFiles } from "./noteSync";
@@ -163,7 +163,11 @@ export default class OriginTrailDkgPlugin extends Plugin {
     }
 
     if (!this.settings.vaultId) {
-      this.settings.vaultId = makeVaultId();
+      // Seed with the vault's filesystem path (desktop) or its name (mobile)
+      // so the id survives a plugin-data reset — see makeVaultId.
+      const adapter = this.app.vault.adapter;
+      const seed = adapter instanceof FileSystemAdapter ? adapter.getBasePath() : this.app.vault.getName();
+      this.settings.vaultId = await makeVaultId(seed);
       migrated = true;
     }
 
