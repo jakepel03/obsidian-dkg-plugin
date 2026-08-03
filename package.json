@@ -1,6 +1,6 @@
 {
   "name": "obsidian-origintrail-dkg",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Sync your notes to a local OriginTrail DKG node as a private, queryable knowledge graph, with optional sharing into collaborative projects.",
   "main": "main.js",
   "scripts": {
