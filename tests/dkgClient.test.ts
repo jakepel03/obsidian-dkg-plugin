@@ -52,11 +52,36 @@ describe("DkgClient", () => {
     expect(JSON.parse(String(calls[0].body))).toEqual({ contextGraphId: "cg" });
   });
 
-  it("promoteAssertion POSTs an unsealed share (entities: all, skipSeal) to swm/share", async () => {
+  it("promoteAssertion POSTs a sealed share (entities: all, no skipSeal) to swm/share", async () => {
     const { transport, calls } = mockTransport({ json: { promotedCount: 3 } });
     await new DkgClient("http://x", "t", transport).promoteAssertion("cg", "obsidian-note-abc");
     expect(calls[0].method).toBe("POST");
     expect(calls[0].url).toBe("http://x/api/knowledge-assets/obsidian-note-abc/swm/share");
-    expect(JSON.parse(String(calls[0].body))).toEqual({ contextGraphId: "cg", entities: "all", skipSeal: true });
+    expect(JSON.parse(String(calls[0].body))).toEqual({ contextGraphId: "cg", entities: "all" });
+  });
+
+  it("discardAssertion seeds a draft back from Shared Memory and retries once", async () => {
+    const calls: RequestUrlParam[] = [];
+    const transport: RequestTransport = async (req) => {
+      calls.push(req);
+      const status = calls.length === 1 ? 500 : 200;
+      return { status, json: { discarded: true }, text: "no draft" } as unknown as RequestUrlResponse;
+    };
+
+    await new DkgClient("http://x", "t", transport).discardAssertion("cg", "obsidian-note-abc");
+
+    expect(calls.map((c) => c.url)).toEqual([
+      "http://x/api/knowledge-assets/obsidian-note-abc/wm/discard",
+      "http://x/api/knowledge-assets/obsidian-note-abc/wm/pull-from",
+      "http://x/api/knowledge-assets/obsidian-note-abc/wm/discard",
+    ]);
+    expect(JSON.parse(String(calls[1].body))).toEqual({ contextGraphId: "cg", layer: "swm" });
+  });
+
+  it("discardAssertion surfaces the original failure when the draft cannot be reopened", async () => {
+    const { transport } = mockTransport({ status: 500, text: "boom" });
+    await expect(new DkgClient("http://x", "t", transport).discardAssertion("cg", "n")).rejects.toThrow(
+      /wm\/discard failed \(500\): boom/
+    );
   });
 });

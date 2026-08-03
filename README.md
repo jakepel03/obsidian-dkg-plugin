@@ -70,7 +70,7 @@ underneath, and you decide, note by note, what stays private and what gets share
 ## Requirements
 
 - **[Obsidian](https://obsidian.md/download)** 1.5.0 or newer.
-- A **local OriginTrail DKG v10 node** (**v10.0.0 mainnet release or newer**), up and running and reachable by the plugin (default `http://127.0.0.1:9200`), plus its **auth token**. v10.0.0 is the first stable release where members of a *curated* project can fork a peer's full note content; on older release-candidate nodes curated forks fall back to a title-and-links stub.
+- A **local OriginTrail DKG v10 node** (**v10.0.7 or newer**), up and running and reachable by the plugin (default `http://127.0.0.1:9200`), plus its **auth token**. v10.0.7 is the rootless-Knowledge-Asset release, where sharing a note became seal-then-share and an edited note re-shares cleanly; earlier nodes reject the sharing calls this plugin makes. Notes written by a node older than v10.0.7 stay readable but can no longer be updated - re-import them under a fresh vault to bring them onto the current write path.
 
 Installing and running the node is covered in the **[OriginTrail DKG repo](https://github.com/OriginTrail/dkg)** (`npm install -g @origintrail-official/dkg` installs the stable mainnet release). Once it's running, grab its base URL and auth token; that's all the plugin needs to connect.
 
